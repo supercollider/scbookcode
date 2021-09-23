@@ -1,6 +1,6 @@
 # Code examples for the SuperCollider book published by MIT
 
-The sc book website (supercolliderbook.net) has been down for a while, making it hard to find the code examples for the book itself. This repo is just a backup of that code, making it a bit easier to find again.
+Thus repositiory replaces the old SuperCollider Book website. Thanks to madskjelldgaard for putting this together.
 
 [You can read more about the book here](https://mitpress.mit.edu/books/supercollider-book)
 
