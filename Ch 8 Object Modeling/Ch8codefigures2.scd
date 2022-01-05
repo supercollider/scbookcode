@@ -3,9 +3,10 @@
 	// figure 8.23 - two granular synthdefs and tests
 (
 	// a gabor (approx. gaussian-shaped) grain
-SynthDef(\gab1st, { |out, amp=0.1, freq=440, sustain=0.01, pan|
+SynthDef(\gab1st, { |out, amp=0.1, freq=440, sustain=0.01, width = 0.3, pan|
 	var snd = FSinOsc.ar(freq);
-	var env = EnvGen.ar(Env.sine(sustain, amp * AmpComp.ir(freq) * 0.5), doneAction: 2);
+	var env = LFGauss.ar(sustain, width, loop: 0, doneAction: 2).range;
+	snd = snd * amp * AmpComp.ir(freq) * 0.5;
 	OffsetOut.ar(out, Pan2.ar(snd * env, pan));
 }, \ir ! 5).add;
 
@@ -60,6 +61,7 @@ Tdef(\cloud0)
 		ampRange: [0.1, 1],
 		durRange: [0.001, 0.01],
 		densRange: [1, 1000],
+		widthRange: [0.1, 0.3],
 		panRange: [-1.0, 1.0]
 	)
 );
@@ -73,6 +75,7 @@ Tdef(\cloud0, { |e|
 			"/s_new", e.synName ? \gab1st,
 			-1, 0, 0,
 			\freq, 	exprand(e.current.freqRange[0], e.current.freqRange[1]),
+			\width, exprand(e.current.widthRange[0], e.current.widthRange[1]),
 			\amp,	exprand(e.current.ampRange[0], e.current.ampRange[1]) * e.vol,
 			\sustain,	exprand(e.current.durRange[0], e.current.durRange[1]),
 			\pan, 	rrand(e.current.panRange[0], e.current.panRange[1])
@@ -101,6 +104,7 @@ Tdef(\cloud0).envir.current.put('densRange', [ 30, 30 ]); // synchronous
 d = Tdef(\cloud0).envir;
 d.current.put('freqRange', [ 800, 1200 ]);
 d.current.put('durRange', [ 0.02, 0.02 ]);
+d.current.put('durRange', [ 0.001, 0.08 ]);
 
 d.current.put('ampRange', [ 0.1, 0.1 ]);
 
@@ -108,9 +112,10 @@ d.current.put('panRange', [ 1.0, 1.0 ]);
 d.current.put('panRange', [ -1.0, 1.0 ]);
 
 d.current.put('densRange', [ 30, 60 ]);
+d.current.put('widthRange', [ 0.001, 0.7 ]);
+
 d.synName = \percSin;
 d.synName = \gab1st;
-d.current.put('durRange', [ 0.001, 0.08 ]);
 
 
 
