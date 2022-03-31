@@ -1,16 +1,16 @@
 
-/////////////////////// Object Modeling code figures /////////////////// 
+/////////////////////// Object Modeling code figures ///////////////////
 
 
 
 	//	figure 8.1 - a Puppet class, and tests for it.
-	
-Puppet { 
+
+Puppet {
 	var <>myfreq; // an instance variable with a getter and a setter method
-	
+
 		// a method for creating a new object of this kind
 	*new { |myfreq=50| ^super.new.myfreq_(myfreq) }
-	
+
 		// a simple method that uses 'myfreq' for something audible.
 	blip { { Blip.ar(myfreq, 11) * XLine.kr(1, 0.01, 0.6, doneAction: 2) }.play; }
 }
@@ -35,7 +35,7 @@ m.blip;		 // should sound differently
 m = (); 			// make an empty event
 m.myfreq_(50);	// put something in it with a setter method: a pseudo-instance variable
 m.myfreq;			// look it up with a getter method
-				// put a function into it with a setter: 
+				// put a function into it with a setter:
 				// this becomes a pseudo-method
 m.blip_({ |ev| { Blip.ar(ev.myfreq, 11) * XLine.kr(1, 0.01, 0.6, doneAction: 2) }.play; });
 m.blip;		// execute the function with a pseudo-method call (same name)
@@ -49,9 +49,9 @@ m.blip;		// execute the function with a pseudo-method call (same name)
 m.numHarms_(20); 	// a new instvar
 m.decay_(0.3); 	// and another
 				// update the blip method to use them:
-m.blip_({ |ev| 
-	{ Blip.ar(ev.myfreq, ev.numHarms) 
-	* XLine.kr(1, 0.01, ev.decay, doneAction: 2) }.play; 
+m.blip_({ |ev|
+	{ Blip.ar(ev.myfreq, ev.numHarms)
+	* XLine.kr(1, 0.01, ev.decay, doneAction: 2) }.play;
 });
 )
 m.blip;	// test
@@ -83,8 +83,8 @@ z.win.close;	// close when done
 (
 z.makeWin = { |z, message="Shout this!"|
 	z.win = Window("Shout", Rect(0, 900,1200, 100)).front;
-	z.win.alpha_(0.7);	
-	z.win.view.background_(Color.clear);	
+	z.win.alpha_(0.7);
+	z.win.view.background_(Color.clear);
 	z.win.alwaysOnTop_(true);
 
 	z.txtView = TextView(z.win, Rect(0, 0,1200, 100));
@@ -93,8 +93,8 @@ z.makeWin = { |z, message="Shout this!"|
 	z.txtView.background_(Color.clear);
 };
 )
-z.makeWin; 
-z.makeWin("Try showing that."); 
+z.makeWin;
+z.makeWin("Try showing that.");
 
 
 
@@ -124,17 +124,17 @@ z.shout("Do we get this too?"); // also when window has closed?
 
 z.txtView.stringColor_(Color.red);	// try a single color
 (
-z.animate = { |z, dt=0.2, n = 6| 
+z.animate = { |z, dt=0.2, n = 6|
 	var colors = [Color.red, Color.green, Color.black];
-	Task { 
-		n.do { |i|Ê
-			dt.wait; 
+	Task {
+		n.do { |i|
+			dt.wait;
 			z.txtView.stringColor_(colors.wrapAt(i))
 		}
 	}.play(AppClock)
 };
 )
-z.animate;			// test with default values 
+z.animate;			// test with default values
 z.animate(0.1, 24); 	// and test with arguments given
 
 
@@ -147,7 +147,7 @@ z.animate(0.1, 24); 	// and test with arguments given
 
 
 
-	// figure 8.9 - using codeDump to shout 
+	// figure 8.9 - using codeDump to shout
 
 this.codeDump = { |str, result, func| [str, result, func].printAll };
 
@@ -164,22 +164,22 @@ this.codeDump = { |str| if (str.beginsWith(z.shoutTag)) { z.shout(str.drop(z.sho
 
 	//	figure 8.10 - updated setMessage flashes text.
 (
-z.setMessage = { |z, str| 
-	var messSize = str.size; 
+z.setMessage = { |z, str|
+	var messSize = str.size;
 	var fontsize = (1.64 * z.txtView.bounds.width) / max(messSize, 32);
 	z.txtView.font_(GUI.font.new("Monaco", fontsize));
 	z.txtView.string_(str);
 	z.animate;
 };
 )
-//!! a long comment gets scaled down to a rather smaller font size, minimally fontsize 32! 
+//!! a long comment gets scaled down to a rather smaller font size, minimally fontsize 32!
 
 //!! short is big!
 (
 z.makeWin = { |q, message="Shout this!"|
 	z.win = Window("Shout", Rect(0, 900,1200, 100)).front;
-	z.win.alpha_(0.7);	
-	z.win.view.background_(Color.clear);	
+	z.win.alpha_(0.7);
+	z.win.view.background_(Color.clear);
 	z.win.alwaysOnTop_(true);
 
 	z.txtView = TextView(z.win, Rect(0, 0,1200, 100));
@@ -200,16 +200,16 @@ z.makeWin("shout.");
 Shout {
 	classvar <>tag="//!!";
 	var <win, <txtView;
-	
+
 	*new { ^super.new }
-} 
+}
 // end of file - Shout.sc
 
-// tests: 
+// tests:
 Shout.tag;
 Shout.tag_("//SHOUT");
 
-a = Shout.new; 
+a = Shout.new;
 a.win;
 a.txtView;
 
@@ -220,14 +220,14 @@ a.txtView;
 
 // begin of file - Shout.sc
 Shout {
-	classvar <>tag="//!!", <>width=1250, <>defaultCodeDumpFunc; 
+	classvar <>tag="//!!", <>width=1250, <>defaultCodeDumpFunc;
 	var <win, <txtView;
-	
-	*initClass { 
+
+	*initClass {
 		defaultCodeDumpFunc = { |str| if (str.beginsWith(tag)) { Shout(str.drop(tag.size)) } };
 	}
 	*new { ^super.new }
-} 
+}
 // end of Shout.sc
 
 Shout.width;
@@ -240,8 +240,8 @@ Shout.defaultCodeDumpFunc;
 
 z.makeWin = { |message="Shout this!"|
 	z.win = GUI.window.new("Shout", Rect(0, 900,1200, 100)).front;
-	z.win.alpha_(0.7);	
-	z.win.view.background_(Color.clear);	
+	z.win.alpha_(0.7);
+	z.win.view.background_(Color.clear);
 	z.win.alwaysOnTop_(true);
 
 	z.txtView = GUI.textView.new(z.win, Rect(0, 0,1200, 100));
@@ -250,24 +250,24 @@ z.makeWin = { |message="Shout this!"|
 };
 
 
-Shout {	
+Shout {
 	...
 	*new { |message| ^super.new.makeWin(message); }
-	
-	makeWin { |message="Shout this!"| 
-	
+
+	makeWin { |message="Shout this!"|
+
 		win = Window("Shout'er", Rect(20, 800, width, 80)).front;
 		win.alpha_(0.7);
 		win.view.background_(Color.clear);
 		win.alwaysOnTop_(true);
-		
+
 		txtView = TextView(win, win.bounds.moveTo(0,0));
 		txtView.background_(Color.clear);
 		txtView.font_(Font.new("Monaco", 32));
 		this.setMessage(message);
 	}
 
-	setMessage { |message| 
+	setMessage { |message|
 		txtView.string_(message.asString)
 	}
 }
@@ -289,26 +289,26 @@ z.shout = { |z, str|
 	z.setMessage(str);
 };
 
-Shout { 
+Shout {
 	classvar <top;
 	...
-	*new { |message="ÁShout'er!"| 
+	*new { |message="Shout'er!"|
 
-		if (top.isNil or: { top.win.isClosed }) { 
-			top = this.basicNew(message); 
+		if (top.isNil or: { top.win.isClosed }) {
+			top = this.basicNew(message);
 		} {
 			top.setMessage(message);
 		};
 	}
 		// the method formerly known as *new
-	*basicNew { |message="Shout this!"| ^super.new.makeWin(message) } 
+	*basicNew { |message="Shout this!"| ^super.new.makeWin(message) }
 
 	*close { try { top.win.close } }
-	
+
 	...
 }
 
-// tests: 
+// tests:
 Shout("Test 1, 2");
 Shout("Test 1, 2, 3, 4");	// same window
 Shout.close;
@@ -322,32 +322,32 @@ Shout("Test 1, 2");		// new window
 
 	//	figure 8.15 - converting animate to a class method.
 
-z.animate = { |z, dt=0.2, n = 6| 
+z.animate = { |z, dt=0.2, n = 6|
 	var colors = [Color.red, Color.green, Color.black];
-	Task { 
-		n.do { |i|Ê
-			dt.wait; 
+	Task {
+		n.do { |i|
+			dt.wait;
 			z.txtView.stringColor_(colors.wrapAt(i))
 		}
 	}.play(AppClock)
 };
 
-Shout { 
+Shout {
 	...
 	animate { |dt=0.2, n=6|
-		var colors = [Color.red, Color.green, Color.black]; 
-		Task { 
-			n.do { |i| 
-				txtView.stringColor_(colors.wrapAt(i)); 
-				dt.wait 
+		var colors = [Color.red, Color.green, Color.black];
+		Task {
+			n.do { |i|
+				txtView.stringColor_(colors.wrapAt(i));
+				dt.wait
 			};
 			txtView.stringColor_(Color.black); // make sure we end black
 		}.play(AppClock);
 	}
-	...	
+	...
 }
 
-// tests: 
+// tests:
 a = Shout("Test 1, 2");
 Shout.top.animate;
 
@@ -355,31 +355,31 @@ Shout.top.animate;
 
 
 
- 
+
 	// figure 8.16 - converting setMessage
 
-z.setMessage = { |z, str| 
-	var messSize = str.size; 
+z.setMessage = { |z, str|
+	var messSize = str.size;
 	var fontsize = (1.64 * z.txtView.bounds.width) / max(messSize, 32);
 	z.txtView.font_(GUI.font.new("Monaco", fontsize));
 	z.txtView.string_(str);
 	z.animate;
 };
 
-Shout { 
+Shout {
 	...
-	setMessage { |message| 
+	setMessage { |message|
 		var messSize, fontSize;
 		messSize = message.size;
 		fontSize = (1.64 * width) / max(messSize, 32);
-		
-		defer { 
+
+		defer {
 			txtView.font_(Font("Monaco", fontSize))
 				.string_(message.asString);
 		};
 		this.animate;
 	}
-	...	
+	...
 }
 
 Shout("Test 1, 2");
@@ -402,18 +402,18 @@ this.codeDump.postcs	// should be gone now
 
 //!! should be off again
 
-Shout { 
+Shout {
 	...
-	*add { var interp = thisProcess.interpreter; 
+	*add { var interp = thisProcess.interpreter;
 		interp.codeDump = interp.codeDump
-			.removeFunc(defaultCodeDumpFunc) // remove it first so it will 
+			.removeFunc(defaultCodeDumpFunc) // remove it first so it will
 										// only be in the list once
-			.addFunc(defaultCodeDumpFunc); 
+			.addFunc(defaultCodeDumpFunc);
 	}
-	*remove { var interp = thisProcess.interpreter; 
-		interp.codeDump = interp.codeDump.removeFunc(defaultCodeDumpFunc); 
+	*remove { var interp = thisProcess.interpreter;
+		interp.codeDump = interp.codeDump.removeFunc(defaultCodeDumpFunc);
 	}
-	...	
+	...
 }
 
 // tests
@@ -433,28 +433,28 @@ Shout.close;
 Shout("blabla");	// now typing is impossible, because the new window is in front.
 
 Shout("blabla blabla");	// now one can type, because Shout window was already there.
-Shout.close; 
+Shout.close;
 
 	// this does not work, because the shout window gets put in front later:
-d = Document.current; Shout(\bla); d.front; 
- 
+d = Document.current; Shout(\bla); d.front;
+
 
 	// This can be wrapped around the call to this.makeWin in Shout:new:
-Shout { 
+Shout {
 	...
-	*new { |message="ÁShout'er!"| 
+	*new { |message="Shout'er!"|
 		var currDoc;
 
-		if (win.isNil or: { win.isClosed }) { 
+		if (win.isNil or: { win.isClosed }) {
 			currDoc = Document.current;
-			top = this.basicNew(message); 
+			top = this.basicNew(message);
 				// wait a little before restoring front window
 			defer ({ currDoc.front }, 0.1);
 		} {
 			top.setMessage(message);
 		};
 	}
-	...	
+	...
 }
 
 
@@ -468,8 +468,8 @@ serialize {|index, pos, extent = 8|
 	var ranges, slice;
 
 	// get ranges
-	ranges = pos.collect{|pos, i| 
-		((pos-(extent*0.5))..(pos+(extent*0.5)-1)) % this.shape[i] 
+	ranges = pos.collect{|pos, i|
+		((pos-(extent*0.5))..(pos+(extent*0.5)-1)) % this.shape[i]
 	};
 	// get sub-slice
 	slice = this.slice(index, *ranges);
@@ -497,7 +497,7 @@ serialize {|index, pos, extent = 8, how = \hilbert|
 
 
 
-// figure 8.21 Ñ some initial serialization methods, and adding an alternative. 
+// figure 8.21  some initial serialization methods, and adding an alternative.
 
 	*initClass {|numDims = 4|
 		...
@@ -524,12 +524,12 @@ QCD.serTypes.put(\star, {|slice|
 	var numDims = 4;
 	var starShape;
 
-	starShape = neighbours1.collect({ |nb|  
-		(0..starSize).collect(_ * nb) 
-	}).flatten(1).collect {|indexN| 
-		indexN + (starSize.div(2)+1).dup(numDims) 
+	starShape = neighbours1.collect({ |nb|
+		(0..starSize).collect(_ * nb)
+	}).flatten(1).collect {|indexN|
+		indexN + (starSize.div(2)+1).dup(numDims)
 	};
-	
+
 	starShape.collect{|iA| slice.slice(*iA)}
 });
 
@@ -537,6 +537,6 @@ QCD.serTypes.put(\star, {|slice|
 
 
 
-///////// continued in ObjMod2_codefigures.rtf ///// 
+///////// continued in ObjMod2_codefigures.rtf /////
 
 
