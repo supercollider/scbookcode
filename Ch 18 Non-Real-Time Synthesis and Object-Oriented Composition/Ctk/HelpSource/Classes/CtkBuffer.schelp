@@ -1,0 +1,513 @@
+TITLE:: CtkBuffer
+summary:: Representation of a buffer for CTK objects
+categories:: Libraries>CTK
+related:: Overviews/CTK, Classes/CtkScore, Classes/CtkSynthDef, Classes/CtkProtoNotes, Classes/CtkNote, Classes/CtkBuffer, Classes/CtkControl, Classes/CtkAudio, Classes/CtkEvent, Classes/CtkGroup
+keyword::CTK
+
+DESCRIPTION::
+Part of the Composer's Tool Kit (CTK) system. See link::Overviews/Ctk:: for more details.
+
+CtkBuffers can be used for both real-time and non-real-time (NRT) purposes, and can be used for soundfile playback, DiskIn allocation and to allocate empty buffer space.
+NOTE::
+For real-time use, link::#-load:: needs to be called on the instance of the CtkBuffer before using it.
+::
+
+CLASSMETHODS::
+
+METHOD:: new
+Create new instance of CtkBuffer. Depending on the parameters passed to the new method, different kinds of buffers will be allocated:
+List::
+##If only path is given, the soundfile will be completely loaded into a CtkBuffer for use in UGens such as PlayBuf or BufRd. Size and numChannels will be calculated for you with the SoundFile class.
+##If path and size is given, a CtkBuffer suitable for use with DiskIn is allocated. The buffer is left open and will be closed when the buffer is freed. Size should be a power of 2 (see the link::Classes/DiskIn:: helpfile).
+##If only size is given, an empty buffer is allocated of size; numChannels defaults to 1.
+::
+Note::
+There are also creation methods for the more commonly used buffer types.
+::
+
+ARGUMENT:: path
+The path to the input sound file.
+ARGUMENT:: size
+The size of a buffer, usually used when creating empty buffers. It is automatically calculated if this CtkBuffer is used to load a soundfile.
+ARGUMENT:: startFrame
+The first frame of the soundfile to read. The default is 0, which is the beginning of the file.
+ARGUMENT:: numFrames
+The number of frames to read. The default is -1, which will read the whole file.
+ARGUMENT:: numChannels
+The number of channels for the buffer. It is automatically calculated if this CtkBuffer is used to load a soundfile.
+ARGUMENT:: bufnum
+An explicitly specified buffer number. The default is nil. If nil, a buffer id will be allocated for you.
+ARGUMENT:: server
+The server on which to allocate the buffer. Defaults to Server.default.
+ARGUMENT:: channels
+When reading from file, specifies channels to read. It can be a single number or an Array. Nil (the default) reads all channels.
+returns:: a CtkBuffer
+
+METHOD:: buffer
+Create an empty CtkBuffer of a given size and numChannels.
+ARGUMENT:: size
+Size of the buffer.
+ARGUMENT:: numChannels
+Number of channels of the buffer.
+ARGUMENT:: server
+The server on which to allocate the buffer.
+returns:: a CtkBuffer
+
+METHOD:: playbuf
+Create a CtkBuffer suitable for PlayBuf usage.
+ARGUMENT:: path
+A String representing the path of the soundfile to be read.
+ARGUMENT:: startFrame
+The first frame of the soundfile to read. The default is 0, which is the beginning of the file.
+ARGUMENT:: numFrames
+The number of frames to read. The default is -1, which will read the whole file.
+ARGUMENT:: server
+The server on which to allocate the buffer.
+ARGUMENT:: channels
+Channels can be nil (read all channels), a single number (read only 1 channel) or and Array of channels.
+returns:: a CtkBuffer
+
+METHOD:: diskin
+Create a CtkBuffer suitable for DiskIn usage (see the link::Classes/DiskIn:: for more information).
+ARGUMENT:: path
+A String representing the path of the soundfile to be read.
+ARGUMENT:: size
+Size of the buffer, defaults to 32768
+ARGUMENT:: startFrame
+The first frame of the soundfile to read. The default is 0, which is the beginning of the file.
+ARGUMENT:: server
+The server on which to allocate the buffer, defaults to Server.default
+ARGUMENT:: channels
+Channels can be nil (read all channels), a single number (read only 1 channel) or and Array of channels.
+returns:: a CtkBuffer
+
+METHOD:: env
+Create a CtkBuffer, filled with values from an link::Classes/Env::.
+ARGUMENT:: size
+Size of the buffer
+ARGUMENT:: env
+An link::Classes/Env:: to be loaded into a CtkBuffer.
+ARGUMENT:: wavetable
+if 0 (default), the CtkBuffer is filled with a link::Classes/Signal::; if 1, the CtkBuffer is filled with a link::Classes/Wavetable::
+ARGUMENT:: server
+The server on which to allocate the buffer.
+returns:: a CtkBuffer
+
+method::collection
+Create a CtkBuffer from a collection, usually a Signal or RawArray.
+argument::collection
+Values to be loaded into a buffer.
+argument::numChannels
+The number of channels for the buffer.
+argument::server
+The server on which to allocate the buffer.
+
+
+INSTANCEMETHODS::
+
+METHOD:: load
+Load the CtkBuffer to the server for real-time use.
+
+ARGUMENT:: time
+Schedule loading the buffer in 'time' seconds
+ARGUMENT:: sync
+If true, a messages will post to let you know the buffer has been allocated
+
+ARGUMENT:: onComplete
+Action to perform after loading. Useful, for instance, in combination with a condition to wait for the buffer to load.
+
+Discussion::
+If other methods have been applied to a CtkBuffer (Wave fill commands or other fill or zero commands), these will be sent after the CtkBuffer has been loaded to the server and the message's time parameter is ignored. If you want to schedule something for the future, do it AFTER calling the load method.
+
+METHOD:: free
+Frees and, if necessary, closes the instance of CtkBuffer. For real-time use.
+ARGUMENT:: time
+Schedule freeing in 'time' seconds.
+ARGUMENT:: addMsg
+Add a message to send to the server.
+
+METHOD:: set
+Set a value or an Array of values to a CtkBuffer. If using in real-time, the CtkBuffer must be loaded first.
+ARGUMENT:: time
+In real-time mode, 'time' schedules the set in the future.
+ARGUMENT:: startPos
+First frame to write values to
+ARGUMENT:: values
+A single value or an Array to set
+
+METHOD:: zero
+Zero the values in the buffer.
+ARGUMENT:: time
+In real-time mode, 'time' schedules the zero in the future.
+
+METHOD:: write
+Write a buffer to a file at path.
+ARGUMENT:: time
+In real-time mode, 'time' schedules the write in the future.
+ARGUMENT:: path
+The path of the output file.
+ARGUMENT:: headerFormat
+The header format of the output file. Defaults to 'aiff'. See link::Classes/SoundFile#-headerFormat:: for more info.
+ARGUMENT:: sampleFormat
+The sample format of the output file. Defaults to 'int16'. See link::Classes/SoundFile#-sampleFormat:: for more info.
+ARGUMENT:: numberOfFrames
+The number of frames to write. The defaults is -1 (all frames).
+ARGUMENT:: startingFrame
+The starting frame of the buffer to write. The default is 0.
+ARGUMENT:: action
+An action to be executed when the buffer is ready
+
+METHOD:: openWrite
+Write a buffer to file at path. This file is left open for use by DiskOut, and will need to have the link::#-closeWrite:: method	applied to the CtkBuffer.
+ARGUMENT:: time
+In real-time mode, time schedules the openWrite in the future.
+ARGUMENT:: path
+The path of the output file.
+ARGUMENT:: headerFormat
+The header format of the output file. Defaults to 'aiff'. See link::Classes/SoundFile#-headerFormat:: for more info.
+ARGUMENT:: sampleFormat
+The sample format of the output file. Defaults to 'int16'. See link::Classes/SoundFile#-sampleFormat:: for more info.
+ARGUMENT:: numberOfFrames
+The number of frames to write. The defaults is -1 (all frames).
+ARGUMENT:: startingFrame
+The starting frame of the buffer to write. The default is 0.
+ARGUMENT:: action
+An action to be executed when the buffer is ready
+
+METHOD:: closeWrite
+Close and write the header for a file that had been created and left open with openWrite.
+argument::time
+In real-time mode, 'time' schedules the closeWrite in the future.
+ARGUMENT:: action
+An action to be executed when the buffer is ready
+
+METHOD:: fill
+Fill a buffer with newValue starting at sample start for numSamples.
+From the link::Reference/Server-Command-Reference#/b_fill::: "This is only meant for setting a few samples, not whole buffers or large sections"
+ARGUMENT:: time
+In real-time mode, 'time' schedules the fill in the future.
+ARGUMENT:: newValue
+Value to fill the buffer with
+ARGUMENT:: start
+Sample number to start
+ARGUMENT:: numSamples
+Number of samples to write
+
+METHOD:: addTo
+Add this CtkBuffer to a CtkScore for playing or NRT rendering.
+note:: All buffers are allocated at the beginning of the score. If a CtkScore is played, all CtkBuffers are loaded to the server before performance begins and may cause a delay. All CtkBuffers are freed when performance of a CtkScore is finished.::
+ARGUMENT:: aCtkScore
+A CtkScore to which the CtkBuffer will be added.
+
+
+METHOD:: sampleRate
+returns:: sample rate of the buffer
+
+METHOD:: numChannels
+returns:: the number of channels in a CtkBuffer
+
+METHOD:: duration
+returns:: the duration of the CtkBuffer, in seconds
+
+
+METHOD:: plot
+Plot the buffer.
+ARGUMENT:: name
+ARGUMENT:: bounds
+ARGUMENT:: minval
+ARGUMENT:: maxval
+ARGUMENT:: parent
+ARGUMENT:: labels
+
+METHOD:: preparePartConv
+Preapre buffer of spectra for use with link::Classes/PartConv::
+ARGUMENT:: time
+ARGUMENT:: buf
+impulse response buffer
+ARGUMENT:: fftsize
+spectral convolution partition size
+ARGUMENT:: action
+An action to be executed when the buffer is ready
+returns::
+CtkBuffer for use with PartConv
+
+subsection:: Wave Fill Commands
+See link::Reference/Server-Command-Reference#Wave Fill Commands:: for more information.
+METHOD:: gen
+This is the basic template used for the following standard b_gen commands.
+ARGUMENT:: time
+In real-time mode, 'time' schedules this buffer's creation in the future.
+ARGUMENT:: cmd
+cmd is one of \sine1, \sine2, \sine3, or \cheby.
+ARGUMENT:: normalize
+Set to 1 to normalize. The defaults is 0 (don't normalize).
+ARGUMENT:: wavetable
+Specifies whether or not the buffer should use Wavetable format (defaults to 0, set to 1 for Wavetables).
+ARGUMENT:: clear
+Specifies if the buffer should be cleared before values are set or if new values should add to values previously in the buffer (defaults to 1 to clear values, 0 to add to old ones)
+ARGUMENT::  ... args
+The format of args is dependent on the wave command (see more below).
+
+anchor::sine1::
+METHOD:: sine1
+Args are individual floats that are applied to harmonic partials of a sine wave and can vary in size.
+ARGUMENT:: time
+In real-time mode, 'time' schedules this buffer's creation in the future.
+ARGUMENT:: normalize
+Set to 1 to normalize. The defaults is 0 (don't normalize).
+ARGUMENT:: wavetable
+Specifies whether or not the buffer should use Wavetable format (defaults to 0, set to 1 for Wavetables).
+ARGUMENT:: clear
+Specifies if the buffer should be cleared before values are set or if new values should add to values previously in the buffer (defaults to 1 to clear values, 0 to add to old ones).
+ARGUMENT::  ... args
+Args are individual floats that are applied to harmonic partials of a sine wave and can vary in size, for example:
+args = 1 - create a wave with only a fundamental frequency.
+args = 0.2, 1, 0.5, 0.2 - four partials, fundamental has an amplitude of 0.2, first partial's is 1, second partial's is 0.5, and the third partial's is 0.2.
+
+anchor::sine2::
+METHOD:: sine2
+Args are pairs where the first float specifies the frequency of a partial (where 1 is the base frequency of the buffer) and the second value is its amplitude.
+ARGUMENT:: time
+In real-time mode, 'time' schedules this buffer's creation in the future.
+ARGUMENT:: normalize
+Set to 1 to normalize. The defaults is 0 (don't normalize).
+ARGUMENT:: wavetable
+Specifies whether or not the buffer should use Wavetable format (defaults to 0, set to 1 for Wavetables).
+ARGUMENT:: clear
+Specifies if the buffer should be cleared before values are set or if new values should add to values previously in the buffer (defaults to 1 to clear values, 0 to add to old ones).
+ARGUMENT::  ... args
+args are pairs where the first float specifies the frequency of a partial (where 1 is the base frequency of the buffer) and the second value is its amplitude, for example:
+args = 1, 0.5, 4, 0.2 - fundamental has a strength of 0.5, and the third partial has a strength of 0.2.
+
+anchor::sine3::
+METHOD:: sine3
+Args are sets of three values (similar to link::#-sine2::) that correspond to partial frequency, amplitude and phase.
+ARGUMENT:: time
+In real-time mode, 'time' schedules this buffer's creation in the future.
+ARGUMENT:: normalize
+Set to 1 to normalize. The defaults is 0 (don't normalize).
+ARGUMENT:: wavetable
+Specifies whether or not the buffer should use Wavetable format (defaults to 0, set to 1 for Wavetables).
+ARGUMENT:: clear
+Specifies if the buffer should be cleared before values are set or if new values should add to values previously in the buffer (defaults to 1 to clear values, 0 to add to old ones).
+ARGUMENT::  ... args
+Args are sets of three values (similar to link::#-sine2::) that correspond to partial frequency, amplitude and phase.
+
+anchor::cheby::
+METHOD:: cheby
+Args can be a series of floats that correspond to a series of chebyshev polynomials.
+ARGUMENT:: time
+In real-time mode, 'time' schedules this buffer's creation in the future.
+ARGUMENT:: normalize
+Set to 1 to normalize. The defaults is 0 (don't normalize).
+ARGUMENT:: wavetable
+Specifies whether or not the buffer should use Wavetable format (defaults to 0, set to 1 for Wavetables).
+ARGUMENT:: clear
+Specifies if the buffer should be cleared before values are set or if new values should add to values previously in the buffer (defaults to 1 to clear values, 0 to add to old ones).
+ARGUMENT::  ... args
+args can be a series of floats that correspond to a series of chebyshev polynomials. The first float is for n = 1, where: cheby(n) = amplitude  * cos(n * acos(x))
+
+METHOD:: fillWithEnv
+Converts an instance of Env into a Signal or Wavetable, and loads its values to the CtkBuffer.
+ARGUMENT:: time
+In real-time mode, 'time' schedules this buffer's creation in the future.
+ARGUMENT:: env
+An Env to be loaded into a CtkBuffer.
+ARGUMENT:: wavetable
+Specifies whether or not the buffer should use Wavetable format (defaults to 0, set to 1 for Wavetables).
+
+
+private::asUGenInput
+private::bufferFunc
+private::bufnum
+private::bundle
+private::closeBundle
+private::copyFromBuffer
+private::copyMsg
+private::endTime
+private::freeBundle
+private::isOpen
+private::isPlaying
+private::label
+private::loadCollection
+private::loadToFloatArray
+private::messages
+private::numFrames
+private::path
+private::server
+private::size
+private::startFrame
+private::starttime
+
+
+EXAMPLES::
+
+subsection::Real-time uses
+
+code::
+s.boot;
+//for use with PlayBuf
+a = CtkBuffer.playbuf(Platform.resourceDir +/+ "sounds/a11wlk01.wav").load(sync: true); // load and sync with the server
+b = {PlayBuf.ar(1, a)}.play(s);
+b.free;
+a.free;
+
+// for use with DiskIn
+a = CtkBuffer(Platform.resourceDir +/+ "sounds/a11wlk01.wav", 65536).load(sync: true); // load and sync with the server
+
+b = {DiskIn.ar(1, a)}.play(s);
+
+b.free;
+a.free;
+
+// for use with delays
+a = CtkBuffer(Platform.resourceDir +/+ "sounds/a11wlk01.wav", 65536).load(sync: true); // load and sync with the server
+b = CtkBuffer(size: 65536).load(sync: true); // load and sync with the server
+
+(
+c = {var play, del;
+	play = DiskIn.ar(1, a);
+	del = BufDelayN.ar(b, play, 0.25);
+	[play, del]
+}.play(s);
+)
+
+c.free;
+a.free;
+b.free;
+
+// allocating and setting values
+a = CtkBuffer(size: 2048);
+a.load(sync: true);
+a.set(0.0, 0, Array.fill(1024, {-1.0.rrand(1.0)}));
+
+b = {PlayBuf.ar(1, a, loop: 1)}.play(s);
+
+// change the values in the buffer
+a.set(0.0, 1024, Array.fill(1024, {-1.0.rrand(1.0)}));
+
+// zero it out
+a.zero;
+
+// refill them
+a.set(0.0, 0, Array.fill(1024, {-1.0.rrand(1.0)}));
+a.set(0.0, 1024, Array.fill(1024, {0.0.rrand(1.0)}));
+
+b.free;
+a.free;
+
+// with Osc, OscN and Shaper with the fill commands
+
+a = CtkBuffer(size: 32768).load(sync: true);
+a.sine1(0.0, 1, 1, 1, 0.3);
+
+b = {Osc.ar(a, 440, mul: 0.5)}.play(s);
+a.sine1(0.0, 1, 1, 1, 0.3, 0.2, 0.5);
+a.sine3(0.0, 1, 1, 1, 1, 0.3, 0.0, 4, 0.2, 0.2, 9, 0.4, 0.5);
+
+b.free;
+a.free;
+
+a = CtkBuffer.new(size: 32768).load(sync: true);
+a.sine1(0.0, 1, 0, 1, 0.3);
+
+b = {OscN.ar(a, 440, mul: 0.5)}.play(s);
+a.sine1(0.0, 1, 0, 1, 0.3, 0.2, 0.5);
+a.sine3(0.0, 1, 0, 1, 1, 0.3, 0.0, 4, 0.2, 0.2, 9, 0.4, 0.5);
+
+b.free;
+a.free;
+
+a = CtkBuffer(size: 32768);
+a.cheby(0.0, 1, 1, 1, 0.3, 0.2, 0.5);
+a.load(sync: true);
+s.scope;
+
+b = {Shaper.ar(a, SinOsc.ar(440, 0, 0.5), mul: 0.5)}.play(s);
+
+a.cheby(0.0, 1, 1, 1, 1.0, 0.5, 0.2);
+a.cheby(0.0, 1, 1, 1, 0.1, 0.5, 1.0);
+a.cheby(0.0, 1, 1, 1, 1.0);
+
+b.free;
+a.free;
+
+// Test with DiskOut
+
+a = CtkBuffer(size: 32768).load;
+// open a file for writing with DiskOut
+a.openWrite(0.0, "~/Desktop/test.aiff".standardizePath, 'aiff', 'int16', -1);
+
+b = {var sig =  SinOsc.ar(440, 0, 0.2); DiskOut.ar(a, sig); sig}.play(s);
+
+// let it run for a moment... then kill
+b.free;
+//close the file
+a.closeWrite.free;
+// test to make sure it worked
+a = CtkBuffer("~/Desktop/test.aiff".standardizePath).load;
+
+b = {PlayBuf.ar(1, a)}.play;
+
+b.free; a.free;
+
+// the fillWithEnv method.
+a = CtkBuffer.new(size: 1024).fillWithEnv(env: Env([0, 1, 0], [0.5, 0.5], \sin)).load;
+b = {SinOsc.ar(440, 0, 0.2) * BufRd.ar(1, a, Phasor.ar(0.0, 0.01, 0, 1024).poll)}.play(s)
+
+b.free;
+a.free;
+::
+
+subsection::Uses with CtkScore
+code::
+(
+var play, buf, score, playfun;
+
+score = CtkScore.new;
+
+play = CtkNoteObject(
+	SynthDef(\play, {arg buffer, rate = 1, dur, start;
+		OffsetOut.ar(0,
+			Pan2.ar(
+				PlayBuf.ar(1, buffer, BufRateScale.kr(buffer) * rate,
+					startPos: start * BufSampleRate.kr(buffer)) *
+				EnvGen.ar(
+					Env([0, 1, 0], [0.5, 0.5], \sin),
+					timeScale: dur)))
+		})
+	);
+
+buf = CtkBuffer(Platform.resourceDir +/+ "sounds/a11wlk01-44_1.aiff").addTo(score);
+
+//CtkBuffer(size: 1024).set(0.0, 0, Array.fill(1024, {-1.0.rrand(1.0)})).zero(1).addTo(score);
+
+playfun = {arg starttime, gestdur, rateenv;
+	var note, now, ratio, rate;
+	now = 0;
+	while({
+		ratio = now / gestdur;
+		rate = rateenv[ratio];
+		play.new(now + starttime, 0.5)
+			.buffer_(buf) // the arg will parse the CtkBuffer and grab its bufnum
+			.rate_(CtkControl.env(Env([rate, 1], [1])))
+			.dur_(0.5)
+			.start_((buf.duration - (0.5 * rate)).rand)
+			.addTo(score);
+		now = now + 0.2;
+		now < gestdur;
+		});
+	};
+
+playfun.value(0, 20, Env([0.5, 2.0, 1.0], [0.2, 0.8], [3, -5]));
+
+// uncomment to play the score
+//[score.notes, score.groups, score.controls, score.messages].postln;
+score.play
+// uncomment to save the score
+//score.saveToFile("~/Desktop/test.sc".standardizePath);
+// uncomment to write the score to a soundfile
+//score.write("~/Desktop/test.aiff".standardizePath,
+//	options: ServerOptions.new.numOutputBusChannels_(2));
+)
+::

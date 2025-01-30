@@ -1,0 +1,304 @@
+TITLE:: CtkNote
+summary:: A note prototyping object
+categories:: Libraries>CTK
+related:: Overviews/CTK, Classes/CtkScore, Classes/CtkSynthDef, Classes/CtkProtoNotes, Classes/CtkNote, Classes/CtkBuffer, Classes/CtkControl, Classes/CtkAudio, Classes/CtkEvent, Classes/CtkGroup
+keyword::CTK
+
+DESCRIPTION::
+Part of the Composer's Tool Kit (CTK) system. See link::Overviews/Ctk:: for more details.
+
+CtkNotes are most easily created through the use of link::Classes/CtkProtoNotes:: and link::Classes/CtkSynthDef:: (CtkNoteObjects). Rarely will you create them directly (since it would be difficult to enable all of the functionality available). Examples below show the intended use.
+
+In addition, getter and setter arguments are created for each instance of CtkNote based on the SynthDef's arguments.
+
+CLASSMETHODS::
+
+METHOD:: new
+Note: This is strong::not:: the usual way of creating new instances of CtkNotes. New instances are best created through instances of link::Classes/CtkNoteObject:: or link::Classes/CtkProtoNotes:: (see the examples)
+ARGUMENT:: starttime
+In NRT or CtkScore rendering mode, the starttime of an CtkNote event. In real-time mode, this parameter will schedule the event for starttime seconds in the future.
+ARGUMENT:: duration
+If not nil, schedules the release of an CtkNote (works in both real-time and non-real-time)
+ARGUMENT:: addAction
+A symbol (\head, \tail, \before, \after or \replace) or an addAction id
+(see link::Reference/Server-Command-Reference#/s_new:: for a more in-depth description)
+ARGUMENT:: target
+A node ID (synth or group) or an instance of CtkGroup or CtkNote
+ARGUMENT:: server
+The server to execute the node on. Defaults to Server.default for real-time performance
+ARGUMENT:: synthdefname
+ARGUMENT:: noMaps
+returns:: an instance of CtkNote
+
+Discussion::
+Intended use - creating CtkNote from CtkSynthDef or CtkProtoNotes
+CODE::
+s.boot;
+//using CtkSynthDef (access SynthDefs by individual variables)
+(
+a = CtkSynthDef(\noise, {arg amp = 0.25;
+	Out.ar(0, PinkNoise.ar(amp ! 2));
+});
+);
+b = a.note; //returns a CtkNote
+b.play; //play in real-time
+b.free;
+
+//using CtkProtoNotes (access SynthDefs by name)
+(
+a = CtkProtoNotes(
+	    SynthDef(\noise, {arg amp = 0.25;
+		        Out.ar(0, PinkNoise.ar(amp ! 2));
+	        })
+    );
+);
+b = a[\noise].note; //returns a CtkNote
+b.play; //play in real-time
+b.free;
+::
+
+
+INSTANCEMETHODS::
+
+METHOD:: play
+Play an instance of CtkNote, for real-time use.
+NOTE::In order to ensure proper timing of scheduled events, CTK sends messages to the server as OSC bundles with a default latency of 0.1s (see link::Guides/ServerTiming::). This is settable in link::Classes/CtkObj#*latency:: class variable.
+When CTK messages are meant to be set in real-time using input interfaces (MIDI, GUI etc), setting the link::Classes/CtkObj#*latency:: to code::0:: will result in processing the messages as soon as possible (but printing the "late" messages from the server as well).
+::
+ARGUMENT:: group
+Schedule with a given group.
+
+METHOD:: release
+Releases CtkNote by setting its 'key' argument to 0.
+ARGUMENT:: time
+In real-time mode,'time' schedules the release in the future (in seconds). In non-real-time mode, a message to release an instance of CtkNote is created at CtkNotes starttime + time.
+ARGUMENT:: key
+'key' defaults to \gate for use in sustained envelopes.
+
+METHOD:: free
+frees an instance of CtkNote.
+ARGUMENT:: time
+In real-time mode, 'time' schedules the freeing of a node in the future. In non-real-time mode, a message to free the node is created at starttime + time.
+ARGUMENT:: addMsg
+Add a message to send to the server.
+
+COPYMETHOD:: CtkObj -addTo
+
+METHOD:: args
+show the args
+ARGUMENT:: argdict
+returns:: CtkNote's args
+
+private::buildBundle
+private::bundle
+private::checkIfRelease
+private::checkNewValue
+private::copy
+private::duration
+private::endtime
+private::getFreeMsg
+private::getValueAtTime
+private::handleRealTimeUpdate
+private::initCN
+private::mapDict
+private::msgBundle
+private::newBundle
+private::noMaps
+private::parseKeys
+private::performArgs
+private::playAutomations
+private::prBundle
+private::refsDict
+private::setDuration
+private::setStarttime
+private::setnDict
+private::synthdefname
+
+EXAMPLES::
+
+code::
+a = CtkNoteObject.new(
+	SynthDef(\test, {arg gate = 1, freq, amp;
+		var env, envgen, src;
+		env = Control.names([\env]).kr(Env.newClear(8));
+		envgen = EnvGen.kr(env, gate, doneAction: 2);
+		src = BPF.ar(WhiteNoise.ar(amp), freq, 0.01, amp * envgen);
+		Out.ar(0, Pan2.ar(src, Rand(-1.0, 1.0)));
+	})
+);
+
+::
+subsection:: Real-time uses
+code::
+// show the args
+a.args;
+
+// create a new instance of CtkNote based on this prototype
+b = a.note(1.0);
+
+// set values for its arguments. See the CtkNote helpfile for more info on arguments
+b.freq_(800).amp_(1.0).env_(Env([0, 1, 0], [0.5, 0.5], \sin, 1));
+
+// play it
+b.play;
+b.freq_(3200)
+b.amp_(2)
+
+// create a second instance with different args ...
+c = a.note.freq_(660).amp_(1.0).env_(Env([0, 1, 0], [5, 5], \sin, 1)).play;
+
+// release both
+b.release;
+c.release;
+
+
+::
+subsection:: Examples that create new instances of a CtkNote directly from CtkProtoNotes
+code::
+
+s = Server.internal.boot;
+Server.default = s;
+
+(
+a = CtkProtoNotes(
+	SynthDef(\test, {arg gate = 1, freq, amp;
+		var env, envgen, src;
+		env = Control.names([\env]).kr(Env.newClear(8));
+		envgen = EnvGen.kr(env, gate, doneAction: 2);
+		src = SinOsc.ar(freq, 0, amp * envgen);
+		Out.ar(0, Pan2.ar(src, Rand(-1.0, 1.0)));
+	}),
+	SynthDef(\control, {arg outbus, rate, low, hi;
+		Out.kr(outbus, LFNoise2.kr(rate).range(low, hi).poll)
+	}),
+	SynthDef(\test2, {arg gate = 1, freq, amp;
+		var env, envgen, src;
+		env = Control.names([\env]).kr(Env.newClear(8));
+		envgen = EnvGen.kr(env, gate, doneAction: 2);
+		src = BPF.ar(WhiteNoise.ar(amp), freq.poll, 0.01, amp * envgen);
+		Out.ar(0, Pan2.ar(src, Rand(-1.0, 1.0)));
+	})
+);
+)
+
+b = a[\test2].note.freq_(440).amp_(1.0).env_(Env([0, 1, 0], [0.5, 0.5], \sin, 1)).play;
+c = a[\test].note.freq_(440).amp_(0.1).env_(Env([0, 1, 0], [0.5, 0.5], \sin, 1)).play;
+
+b.release;
+c.release(2); // release in 2 seconds
+
+z = CtkControl.play; // allocates a control bus from the server, and tells Ctk it is for RT use
+
+// write values to z from a CtkNote
+b = a[\control].note.outbus_(z.bus).rate_(2).low_(440).hi_(880).play;
+
+// use the instance of CtkControl as an argument
+
+c = a[\test2].note.freq_(z).amp_(3).env_(Env([0, 1, 0], [1, 1], \sin, 1)).play;
+d = a[\test].note.freq_(z).amp_(0.2).env_(Env([0, 1, 0], [10, 0.1], \sin, 1)).play;
+
+// arguments that are changed while a CtkNote is running will change that parameter in real-time
+c.amp = 0.5;
+d.amp = 0.05;
+
+c.amp_(1);
+d.amp_(0);
+
+// release the nodes with \gate args, free the other after they have finished
+[d, c].do({arg me; me.release}); b.free(1);
+
+// play and schedule the release of the note
+
+b = a[\test2].note
+.freq_(440)
+.amp_(1.0)
+.env_(Env([0, 1, 0], [0.5, 0.5], \sin, 1))
+.play;
+
+b.release(4)
+
+::
+subsection:: CtkScore examples
+Examples that populate an instance of CtkScore. The CtkScore can then be rendered in NRT, played or saved as a file.
+See link::Classes/CtkScore:: for more examples.
+code::
+(
+var scpn, score, grainfun, gliss;
+
+// reset allocators for this run of the score ... good for repeated renderings
+
+s.newAllocators;
+
+scpn = CtkProtoNotes(
+	SynthDef(\control, {arg outbus, rate, low, hi;
+		Out.kr(outbus, LFNoise2.kr(rate).range(low, hi))
+	}),
+	SynthDef(\test, {arg freq, amp, dur;
+		var env, envgen, src;
+		env = Env([0, 1, 0], [0.5, 0.5], \sin);
+		envgen = EnvGen.kr(env, timeScale: dur);
+		src = BPF.ar(WhiteNoise.ar(amp), freq, 0.01, amp * envgen);
+		Out.ar(0, Pan2.ar(src, Rand(-1.0, 1.0)));
+	})
+);
+
+score = CtkScore.new;
+
+/*
+creates a granular gesture of duration. Each grain is 0.1 seconds long, new grain every 0.02 seconds
+*/
+
+grainfun = {arg starttime, duration, ampenv, lowfreq, hifreq;
+	var now, note;
+	now = 0;
+	ampenv.times = ampenv.times.normalizeSum * duration; // scale the Env's time to the gestures
+	while({
+		// create a note... add it to the CtkScore
+		note = scpn[\test].note(starttime + now, 0.1)
+		.freq_(lowfreq.rrand(hifreq))
+		.amp_(ampenv[now])
+		.dur_(0.1);
+		score.add(note); // tell CtkScore to add the note
+		now = now + 0.02;
+		now < duration;
+	});
+};
+
+gliss = {arg starttime, duration, rate, lowfreq, hifreq;
+	var cbus, control, note;
+	cbus = CtkControl.new;
+	control = scpn[\control].note(starttime, duration)
+	.outbus_(cbus.bus)
+	.rate_(rate)
+	.low_(lowfreq)
+	.hi_(hifreq)
+	.addTo(score); // tell CtkNote to add to a CtkScore
+	note = scpn[\test].note(starttime, duration, \after, control)
+	.freq_(cbus)
+	.amp_(2)
+	.dur_(duration)
+	.addTo(score);
+};
+
+grainfun.value(1, 10, Env([0, 1, 0], [0.5, 0.5], [3, -5]), 440, 880);
+grainfun.value(4, 4, Env([0, 1, 0], [0.5, 0.5], [3, -5]), 4400, 8800);
+grainfun.value(6, 12, Env([0, 1, 0], [0.5, 0.5], [3, -5]), 300, 400);
+grainfun.value(3, 10, Env([0, 1, 0], [0.5, 0.5], [3, -5]), 200, 200);
+grainfun.value(1.5, 20, Env([0, 1, 0], [0.5, 0.5], [3, -5]), 7000, 7100);
+
+5.do({arg i;
+	var j;
+	j = i + 1;
+	gliss.value(3 + (i + 4), 10.rrand(7), j.reciprocal, 440 * j, 880 * j);
+});
+
+// uncomment to play the CtkScore you have created
+score.play(s);
+
+// uncomment to write the score to a soundfile
+// score.write("~/Desktop/test.aiff".standardizePath, score.endtime, 48000, options: ServerOptions.new.numOutputBusChannels_(2));
+
+// uncomment to save the CtkScore as a file
+// score.saveToFile("~/Desktop/test.sc".standardizePath);
+)
+::

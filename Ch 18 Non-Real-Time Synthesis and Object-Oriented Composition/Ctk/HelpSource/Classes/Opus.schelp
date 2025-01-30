@@ -1,0 +1,180 @@
+TITLE:: Opus
+summary:: A project management system to be used with Ctk objects for real-time and non-real-time works or project organization
+categories:: Libraries>Opus
+keyword::Ctk, Opus
+
+DESCRIPTION::
+Opus helps organize projects based around the Composer's Took Kit (Ctk). A hierarchy of folders to manage Ctk objects (CtkNoteObjects, CtkScores, CtkPMods, etc).
+
+Opus represents a folder structure where files reside that contain functions to to generate specific instances of classes. The aim is to make these functions / files as modular as possible so they can be reused in other pieces. The main modes of working are in support of RT / NRT score based work as well as RT Ctk based pieces (incorporating mostly CtkPEvents and CtkPMod).
+
+The Opus object for a project is a common access point for the resources in a project. For instance, the CtkSynthDef objects that are created in from 'synths' folder can be accessed from the instance variable 'synths' (an IdentityDictionary), using the name of the file as the key into the IdentityDictionary.
+
+An Opus project contains the following file hierarchy:
+
+Project Root /
+
+___audioRoute/
+
+______audioIn.scd
+
+______audioOut.scd
+
+___events/
+
+___init/
+
+______init.scd
+
+______kill.scd
+
+___processes/
+
+___scores/
+
+___synths/
+
+___main.scd
+
+When the 'setup' method is called, the instance of Opus, an initial pass of the file hierarchy will iterate over the folders to create instance of Ctk objects for the project. See the method explanation below for more details on the expected structure in these files, and how to generate templates.
+
+
+CLASSMETHODS::
+
+METHOD:: new
+Create new instance of a Opus.
+ARGUMENT::  path
+The full path for this project.
+ARGUMENT::  server
+A server object to use. Defaults to Server.default
+ARGUMENT::  createIfMissing
+If this project isn't set up at this path, this tells SuperCollider to create it.
+
+PRIVATE::initAtPath
+PRIVATE::prCreateTemplateWithStringAtPath
+
+INSTANCEMETHODS::
+
+METHOD:: copyToNewOpus
+Crete a copy of an Opus project to a new path.
+
+ARGUMENT:: newBasePathName
+The full path for this copy of the project.
+
+METHOD:: setup
+
+Called on an instance of Opus to traverse the directory hierarchy from its root folder to create instances of objects to be used. Below is an in-depth explanations
+
+PRIVATE::prCreateTemplateWithStringAtPath
+PRIVATE::prLoadAudioInRoutes
+PRIVATE::prLoadAudioOutRoutes
+PRIVATE::prLoadEventAtPath
+PRIVATE::prLoadEvents
+PRIVATE::prLoadFolders
+PRIVATE::prLoadInitProcessAtPath
+PRIVATE::prLoadKillProcessAtPath
+PRIVATE::prLoadProcessAtPath
+PRIVATE::prLoadProcesses
+PRIVATE::prLoadScoreAtPath
+PRIVATE::prLoadScores
+PRIVATE::prLoadSynths
+PRIVATE::prLoadSynthsAtPath
+
+
+
+section:: Setup Details (in depth)
+
+The following describes how each file in the different folders is handled, and typical use cases.
+
+subsection:: audioRoute: audioIn.sc and audioOut.sc
+
+These files both contain an array of arrays that signify audio signal paths to hardware.
+For inputs: Each secondary array should contain a key to access the input with, and a 0 based index for a channel on the physical device followed by the number of channels.
+For outpus: Each secondary array should contain a key to access the output with, and a 0 based index for a channel on the physical device followed by the number of channels.
+
+subsection:: events:
+
+files that contain a function that returns information about a CtkEvent
+
+TODO
+
+subsection:: init: init.scd and kill.scd
+
+TODO
+
+subsection:: main.scd:
+
+for RT pieces with CtkPEvents, the main file to exectute when the 'runMain' instance method is called.
+
+subsection:: processes
+
+TODO
+
+subsection:: scores
+
+for RT or NRT pieces, files that contain code that return a CtkScore. When the file is evaluated, the instance of Opus and the name of the file is passed in as a Function argument. CtkScores are stored in the IdentityDictionary instance variable 'scores', and can be accessed with the file name as a key.
+
+subsection:: synths
+
+Synth files should contain a Function that returns a CtkSynthDef. These can be used in your CtkPMods that are created from the Functions created in Opus processes, or referenced for CtkScores. Each file should contain one CtkSynthDef that is the last statement in the file, and it should have a unique name (preferably the sdKey passed in to the Function).
+
+EXAMPLES::
+code::
+// create a project called test
+o = Opus("~/Desktop/test".standardizePath, s);
+// set a function to be called when setup is done.
+o.onReadyFunc_({"Booted!".postln;});
+// run setup!
+o.setup;
+
+// using the template functionality to create a CtkSynthDef prototype
+o.createTemplateSynthWithName(\example1);
+// open the file
+o.openSynthFile(\example1);
+
+// Update the file. Paste the code inside the block quote into the file just opened, then save the file
+/*
+
+{arg opus, sdKey;
+var sd;
+sd = CtkSynthDef(sdKey, {arg outBus = 0, inBus = 2, freq, dur = 1;
+	Out.ar(outBus, SinOsc.ar(freq, 0, 0.4) * EnvGen.kr(Env([0, 1, 0], [0.1, 0.9], \sin), timeScale: dur))
+});
+sd;
+}
+*/
+
+// reload files after making changes in them
+o.loadFiles;
+
+// access and play the note!
+o.synths[\example1].note(0.0, 1.0).freq_(440).play
+
+// using the template functionality to create a CtkScore
+o.createTemplateScoreWithName(\example1Score);
+o.openScoreFile(\example1Score);
+
+// paste the code inside the block quote into the file just opened
+/*
+{arg opus, fileKey;
+    opus.newScore(fileKey, {
+		var score, sd;
+        // return a CtkScore
+        score = CtkScore.new;
+        // access the CtkSynthDef
+		sd = opus.synths[\example1];
+		10.do({arg i;
+			var freqScaler = 1 + i;
+			score.add(sd.note(i, 1).freq_(440 * freqScaler).dur_(1));
+		});
+		score
+});
+}
+*/
+
+// reload files after making changes in them
+o.loadFiles;
+z = o.scores[\example1Score];
+z.play;
+
+::

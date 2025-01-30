@@ -1,0 +1,248 @@
+TITLE:: CtkAudio
+summary:: Representation of an audio bus for CTK objects
+categories:: Libraries>CTK
+related:: Overviews/CTK, Classes/CtkScore, Classes/CtkSynthDef, Classes/CtkProtoNotes, Classes/CtkNote, Classes/CtkBuffer, Classes/CtkControl, Classes/CtkAudio, Classes/CtkEvent, Classes/CtkGroup
+keyword::CTK
+
+DESCRIPTION::
+Part of the Composer's Tool Kit (CTK) system. See link::Overviews/Ctk:: for more details.
+
+CtkAudio is a wrapper for an audio link::Classes/Bus:: suitable for use with CTK objects.
+CtkAudio object can be passed in straight to a CtkNotes arg. The bus id will be extracted for you.
+
+
+CLASSMETHODS::
+
+
+METHOD:: new
+Create new instance
+
+ARGUMENT:: numChans
+The number of channels to allocate. Defaults to 1.
+
+ARGUMENT:: bus
+the bus id to write values to. Defaults to nil, where an id will be allocated for you.
+
+ARGUMENT:: server
+and instance of Server to allocate the audio bus from. Defaults to Server.default.
+
+returns:: a CtkAudio
+
+
+METHOD:: play
+Create new instance and make it ready for RealTime use.
+
+private:: reserve
+
+
+INSTANCEMETHODS::
+
+METHOD:: bus
+
+returns:: bus number of this CtkAudio (similar to link::Classes/Bus#-index::)
+
+METHOD:: free
+returns the bus id to the allocation pool
+
+private:: asUGenInput
+
+private:: reserve
+
+private:: at
+
+private:: index
+
+private:: isPlaying
+
+private:: asMapInput
+
+private:: play
+
+private:: init
+
+private:: +
+
+private:: index
+
+private:: asCtkAudio
+
+private:: label
+
+private:: aLabel
+
+EXAMPLES::
+
+code::
+s = Server.default.boot;
+
+(
+var pnotes, group, noisesynth, noisebus, filtbus, ampsynth, ampbus, task, env;
+var cond;
+cond = Condition.new;
+Routine.run({
+	pnotes = CtkProtoNotes(
+		SynthDef(\noise, {arg outbus;
+			Out.ar(outbus, WhiteNoise.ar(1));
+		}),
+		SynthDef(\filts, {arg outbus, inbus, dur, freq, amp;
+			var env, envgen, src;
+			env = Control.names([\env]).kr(Env.newClear(8));
+			envgen = EnvGen.kr(env, timeScale: dur, doneAction: 2);
+			src = BPF.ar(In.ar(inbus), freq, 0.01);
+			Out.ar(outbus, Pan2.ar(src * envgen * amp, Rand(-1.0, 1.0)));
+		}),
+		SynthDef(\dels, {arg inbus, deltime, dur, amp;
+			var env, envgen, src;
+			env = Control.names([\env]).kr(Env.newClear(8));
+			envgen = EnvGen.kr(env, timeScale: dur, doneAction: 2);
+			src = CombN.ar(In.ar(inbus, 2), deltime, [deltime, Rand.new(0.01, deltime)]);
+			Out.ar(0, src * envgen * amp);
+		}),
+		SynthDef(\controlenv, {arg gate = 1, outbus;
+			var env;
+			env = Control.names([\env]).kr(Env.newClear(8));
+			Out.kr(outbus, EnvGen.kr(env, gate));
+		}).load(s)
+	);
+
+	s.sync(cond);
+
+	env = Env([0, 1, 0], [1, 4], [3, -4], 1);
+
+	group = CtkGroup.play;
+	noisebus = CtkAudio.new; // allocate an audio bus to route noise
+	filtbus = CtkAudio.new(2); // sends stereo
+	ampbus = CtkControl.new; // for global amp control
+
+	noisesynth = pnotes[\noise].note(addAction: \head, target: group)
+	.outbus_(noisebus) // a CtkAudio! No need to call .bus
+	.play;
+
+	ampsynth = pnotes[\controlenv].note(addAction: \head, target: group)
+	.outbus_(ampbus.bus) // a CtkControl... need to call .bus otherwise, it will map!
+	.env_(env)
+	.play;
+
+	task = Task({
+		var reltime, dur;
+		reltime = env.releaseTime;
+		dur = 10;
+		// schedule the release of the global envelope
+		SystemClock.sched(dur - reltime, {
+			group.release;
+		});
+		// schedule the release of the Task
+		SystemClock.sched(dur, {
+			group.freeAll;
+			task.stop;
+		});
+		loop({
+			// place the filter notes after the noisesynth
+			pnotes[\filts].note(addAction: \after, target: noisesynth)
+			.dur_(1)
+			.outbus_(filtbus) // route output for the delays
+			.inbus_(noisebus) // read in the noisebus
+			.env_(Env([0, 1, 0], [0.5, 0.5], \sin))
+			.freq_(1200.rrand(2400))
+			.amp_(ampbus)
+			.play;
+			pnotes[\dels].note(addAction: \tail, target: group)
+			.inbus_(filtbus) // read in the filtered noise
+			.deltime_(0.01.rrand(0.03))
+			.dur_(1.5)
+			.env_(Env([0, 1, 0], [0.5, 0.5], \sin))
+			.amp_(ampbus) // don't call .bus here... it will map the arg for you
+			.play;
+			0.5.wait;
+		})
+	});
+
+	task.play;
+})
+)
+::
+
+subsection:: CtkScore
+Examples that populate an instance of CtkScore. The CtkScore can then be rendered in NRT, played or saved as a file.
+See link::Classes/CtkScore:: for more examples.
+code::
+(
+var pnotes, group, noisesynth, noisebus, filtbus, ampsynth, ampbus, task, env;
+var score, now;
+score = CtkScore.new;
+
+pnotes = CtkProtoNotes(
+	SynthDef(\noise, {arg outbus;
+		Out.ar(outbus, WhiteNoise.ar(1));
+	}),
+	SynthDef(\filts, {arg outbus, inbus, dur, freq, amp;
+		var env, envgen, src;
+		env = Control.names([\env]).kr(Env.newClear(8));
+		envgen = EnvGen.kr(env, timeScale: dur, doneAction: 2);
+		src = BPF.ar(In.ar(inbus), freq, 0.01);
+		Out.ar(outbus, Pan2.ar(src * envgen * amp, Rand(-1.0, 1.0)));
+	}),
+	SynthDef(\dels, {arg inbus, deltime, dur, amp;
+		var env, envgen, src;
+		env = Control.names([\env]).kr(Env.newClear(8));
+		envgen = EnvGen.kr(env, timeScale: dur, doneAction: 2);
+		src = CombN.ar(In.ar(inbus, 2), deltime, [deltime, Rand.new(0.01, deltime)]);
+		Out.ar(0, src * envgen * amp);
+	}),
+	SynthDef(\controlenv, {arg gate = 1, outbus;
+		var env;
+		env = Control.names([\env]).kr(Env.newClear(8));
+		Out.kr(outbus, EnvGen.kr(env, gate));
+	}).load(s)
+);
+
+env = Env([0, 1, 0], [1, 4], [3, -4], 1);
+
+group = CtkGroup.new.addTo(score);
+noisebus = CtkAudio.new; // allocate an audio bus to route noise
+filtbus = CtkAudio.new(2); // sends stereo
+ampbus = CtkControl.new; // for global amp control
+
+noisesynth = pnotes[\noise].note(0.1, addAction: \head, target: group)
+.outbus_(noisebus) // a CtkAudio! No need to call .bus
+.addTo(score);
+
+ampsynth = pnotes[\controlenv].note(1.0, 10, addAction: \head, target: group)
+.outbus_(ampbus.bus) // a CtkControl... need to call .bus!
+.env_(env)
+.release(10 - env.releaseTime)
+.addTo(score);
+
+now = 0.0;
+
+while({
+	// place the filter notes after the noisesynth
+	pnotes[\filts].note(1.0 + now, addAction: \after, target: noisesynth)
+	.dur_(1)
+	.outbus_(filtbus) // route output for the delays
+	.inbus_(noisebus) // read in the noisebus
+	.env_(Env([0, 1, 0], [0.5, 0.5], \sin))
+	.freq_(1200.rrand(2400))
+	.amp_(ampbus)
+	.addTo(score);
+	pnotes[\dels].note(1.0 + now, addAction: \tail, target: group)
+	.inbus_(filtbus) // read in the filtered noise
+	.deltime_(0.01.rrand(0.03))
+	.dur_(1.5)
+	.env_(Env([0, 1, 0], [0.5, 0.5], \sin))
+	.amp_(ampbus) // don't call .bus here... it will map the arg for you
+	.addTo(score);
+	now = now + 0.5;
+	now < 10;
+});
+
+// uncomment to play the CtkScore you have created
+score.play(s);
+
+// uncomment to write the score to a soundfile
+// score.write("~/Desktop/test.aiff".standardizePath, options: ServerOptions.new.numOutputBusChannels_(2));
+
+// uncomment to save the CtkScore as a file
+// score.saveToFile("~/Desktop/test.sc".standardizePath);
+)
+::

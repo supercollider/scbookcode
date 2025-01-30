@@ -1,0 +1,230 @@
+TITLE:: CtkGroup
+summary:: Representation of a group on the server for use with CTK objects
+categories:: Libraries>CTK
+related:: Overviews/CTK, Classes/CtkScore, Classes/CtkSynthDef, Classes/CtkProtoNotes, Classes/CtkNote, Classes/CtkBuffer, Classes/CtkControl, Classes/CtkAudio, Classes/CtkEvent, Classes/CtkGroup, Classes/CtkPGroup
+keyword::CTK
+
+DESCRIPTION::
+Part of the Composer's Tool Kit (CTK) system. See link::Overviews/Ctk:: for more details.
+
+CtkGroup is a wrapper for a link::Classes/Group:: suitable for use with CTK objects. See also link::Classes/CtkPGroup:: for a CTK implementation of a link::Classes/ParGroup::.
+
+
+CLASSMETHODS::
+
+METHOD:: new
+Create new instance - for use with CtkScore or to enable it for real-time use at a later time (see link::#-play::)
+ARGUMENT:: starttime
+In NRT or CtkScore rendering mode, the starttime of an CtkGroup event. In real-time mode, this parameter is ignored (defaults to nil).
+ARGUMENT:: duration
+A duration for the CtkGroup. If not nil, the group will be freed after the specified time.
+ARGUMENT:: node
+An id for this instance of CtkGroup. Defaults to nil, and one will be allocated for you.
+ARGUMENT:: addAction
+A symbol (\head, \tail, \before, \after or \replace) or an addAction id (see link::Reference/Server-Command-Reference#/g_new:: for a more in-depth description)
+ARGUMENT:: target
+A node ID (synth or group) or an instance of CtkGroup or CtkNote
+ARGUMENT:: server
+The server to execute the node on. Defaults to Server.default for real-time performance
+returns:: a CtkGroup
+
+METHOD:: play
+Create and immediately place a group on the server for real-time usage; see link::#*new:: for the description of arguments.
+
+
+INSTANCEMETHODS::
+
+METHOD::release
+Sets the CtkGroup members' 'key' argument to 0. Can be used to set the 'key' argument of every member of a CtkGroup to a value (typically used for 'gate' args)
+ARGUMENT::time
+In real-time mode, 'time' schedules the release in the future (in seconds). In non-real-time mode, a message to release an instance of CtkGroup is created at CtkGroup starttime + time.
+ARGUMENT::key
+'key' defaults to \gate for use in sustained envelopes.
+
+METHOD:: play
+Create an instance of this CtkGroup on the server for real-time use.
+ARGUMENT:: neg
+Defaults to 0.1. Makes sure CtkGroups are created first.
+
+METHOD::free
+Frees the instance of CtkGroup and everything running in that CtkGroup.
+ARGUMENT:: time
+In real-time mode, 'time' schedules the freeing of a node in the future. In non-real-time mode, a message to free the node is created at starttime + time.
+ARGUMENT::addMsg
+Defaults to true. This will add the free message to Ctk's internal message keeper and will be added to a score.
+
+COPYMETHOD:: CtkObj -addTo
+
+PRIVATE:: freeAll
+PRIVATE:: prBundle
+PRIVATE:: msgBundle
+PRIVATE:: newBundle
+PRIVATE:: init
+PRIVATE:: setDuration
+PRIVATE:: setStarttime
+PRIVATE:: bundle
+PRIVATE:: deepFree
+PRIVATE:: endtime
+PRIVATE:: children
+PRIVATE:: buildBundle
+PRIVATE:: noteDict
+PRIVATE:: duration
+PRIVATE:: isGroupPlaying
+
+EXAMPLES::
+Examples that create new instances of a SynthDef directly from CtkProtoNotes:
+code::
+s.boot;
+(
+var pnotes, group, bus1, bus2, env, freq, control, task;
+var cond;
+cond = Condition.new;
+Routine.run({
+	pnotes = CtkProtoNotes(
+		SynthDef(\test, {arg dur, freq, amp;
+			var env, envgen, src;
+			env = Control.names([\env]).kr(Env.newClear(8));
+			envgen = EnvGen.kr(env, timeScale: dur, doneAction: 2);
+			src = SinOsc.ar(freq, 0, amp * envgen);
+			Out.ar(0, Pan2.ar(src, Rand(-1.0, 1.0)));
+		}),
+		SynthDef(\control, {arg outbus, rate, low, hi;
+			Out.kr(outbus, LFNoise2.kr(rate).range(low, hi))
+		}),
+		SynthDef(\controlenv, {arg gate = 1, outbus;
+			var env;
+			env = Control.names([\env]).kr(Env.newClear(8));
+			Out.kr(outbus, EnvGen.kr(env, gate));
+		}).load(s)
+	);
+
+	s.sync(cond);
+
+	group = CtkGroup.play;
+	bus1 = CtkControl.play; // create a CtkControl for writing out to
+	bus2 = CtkControl.play; // create a CtkControl for writing out to
+
+	env = Env([0, 1, 0], [1, 4], [3, -4], 1);
+
+	// create a controlenv and a loop of CtkNotes to play inside the CtkGroup
+	freq = pnotes[\control].note(addAction: \head, target: group)
+	.outbus_(bus1) // need to use the .bus method on CtkControl to just pass in its bus id
+	.rate_(1)
+	.low_(100)
+	.hi_(1050)
+	.play;
+
+	control = pnotes[\controlenv].note(addAction: \head, target: group)
+	.outbus_(bus2) // need to use the .bus method on CtkControl to just pass in its bus id
+	.env_(env)
+	.play;
+
+	task = Task({
+		var reltime, dur;
+		reltime = env.releaseTime;
+		dur = 10;
+		// schedule the release of the global envelope
+		SystemClock.sched(dur - reltime, {
+			group.release;
+		});
+		// schedule the release of the Task
+		SystemClock.sched(dur, {
+			group.freeAll;
+			task.stop;
+		});
+		loop({
+			pnotes[\test].note(addAction: \tail, target: group)
+			.dur_(1)
+			.env_(Env([0, 1, 0], [0.5, 0.5], \sin))
+			.freq_(bus1) // if a CtkControl is passed in, the arg will be mapped to the
+			.amp_(bus2) // CtkControls bus
+			.play;
+			0.5.wait;
+		})
+	});
+
+	task.play;
+})
+)
+::
+subsection:: CtkScore uses
+Examples that populate an instance of CtkScore. The CtkScore can then be rendered in NRT, played or saved as a file. See link::Classes/CtkScore:: for more examples.
+code::
+(
+var scpn, score, grainfun, gliss;
+scpn = CtkProtoNotes(
+	SynthDef(\control, {arg outbus, rate, low, hi;
+		Out.kr(outbus, LFNoise2.kr(rate).range(low, hi))
+	}),
+	SynthDef(\test, {arg freq, amp, dur;
+		var env, envgen, src;
+		env = Env([0, 1, 0], [0.5, 0.5], \sin);
+		envgen = EnvGen.kr(env, timeScale: dur);
+		src = BPF.ar(WhiteNoise.ar(amp), freq, 0.01, amp * envgen);
+		Out.ar(0, Pan2.ar(src, Rand(-1.0, 1.0)));
+	})
+);
+
+score = CtkScore.new;
+
+/*
+creates a granular gesture of duration. Each grain is 0.1 seconds long, new grain every 0.02 seconds
+*/
+
+grainfun = {arg starttime, duration, ampenv, lowfreq, hifreq;
+	var now, note;
+	now = 0;
+	ampenv.times = ampenv.times.normalizeSum * duration; // scale the Env's time to the gestures
+	while({
+		// create a note... add it to the CtkScore
+		note = scpn[\test].note(starttime + now, 0.1)
+		.freq_(lowfreq.rrand(hifreq))
+		.amp_(ampenv[now])
+		.dur_(0.1);
+		score.add(note); // tell CtkScore to add the note
+		now = now + 0.02;
+		now < duration;
+	});
+};
+
+gliss = {arg starttime, duration, rate, lowfreq, hifreq;
+	var cbus, control, note, group;
+	cbus = CtkControl.new;
+	// run these processes within its own CtkGroup
+	group = CtkGroup.new(addAction: \head, target: 1).addTo(score);
+	control = scpn[\control].new(starttime, duration, \head, group)
+	.outbus_(cbus)
+	.rate_(rate)
+	.low_(lowfreq)
+	.hi_(hifreq)
+	.addTo(score); // tell CtkNote to add to a CtkScore
+	note = scpn[\test].new(starttime, duration, \tail, group)
+	.freq_(cbus)
+	.amp_(2)
+	.dur_(duration)
+	.addTo(score);
+};
+
+grainfun.value(1, 10, Env([0, 1, 0], [0.5, 0.5], [3, -5]), 440, 880);
+grainfun.value(4, 4, Env([0, 1, 0], [0.5, 0.5], [3, -5]), 4400, 8800);
+grainfun.value(6, 12, Env([0, 1, 0], [0.5, 0.5], [3, -5]), 300, 400);
+grainfun.value(3, 10, Env([0, 1, 0], [0.5, 0.5], [3, -5]), 200, 200);
+grainfun.value(1.5, 20, Env([0, 1, 0], [0.5, 0.5], [3, -5]), 7000, 7100);
+
+5.do({arg i;
+	var j;
+	j = i + 1;
+	gliss.value(3 + (i + 4), 10.rrand(7), j.reciprocal, 440 * j, 880 * j);
+});
+
+// uncomment to play the CtkScore you have created
+score.play(s);
+
+// uncomment to write the score to a soundfile
+//score.write("~/Desktop/test.aiff".standardizePath, 22,
+//	options: ServerOptions.new.numOutputBusChannels_(2));
+
+// uncomment to save the CtkScore as a file
+//score.saveToFile("~/Desktop/test.sc".standardizePath);
+)
+::
