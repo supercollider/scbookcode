@@ -1,14 +1,18 @@
 // f-string objects testing
+
+// make a simple expression and parse it
 c = CollStream("f\"abc = {abc}\"; xyz");
 t = SCBookExpressionNode.new.parse(c);
 
+// peek into the tree
 t.children
 t.children[1].dump
 
+// a bit more complex expression
 c = CollStream("f\"abc = {abc}, def = {def}\"; xyz");
 t = SCBookExpressionNode.new.parse(c);
 d = CollStream.new;
-t.streamCode(d);
+t.streamCode(d);  // render to SC syntax
 d.collection;
 
 t.children
@@ -16,6 +20,7 @@ t.children[1].dump
 t.children[1].children[0].dump
 
 
+// enable it in the preprocessor
 (
 thisProcess.interpreter.preProcessor = { |str|
 	var source = CollStream(str);
@@ -26,10 +31,11 @@ thisProcess.interpreter.preProcessor = { |str|
 };
 )
 
-
+// now this code should run
 f"A random number = {1.0.rand}; and another = {2.0.rand}"
 
 
+// a testing suite
 (
 var convertFStrings = { |str|
 	var source = CollStream(str);
@@ -77,6 +83,8 @@ try {
 
 
 
+// verify a couple of edge cases
+
 (
 c = CollStream("(
 var a = \"Testing regular string with trailing f\";
@@ -118,13 +126,11 @@ d = CollStream.new; t.streamCode(d); d.collection.interpret
 // tree expressions
 "Random number = %".format(rrand(1, 5) * 2);
 
-f"Hello, my name is {nameView.value}".postln;
-
-
 t = SCBookExpressionNode.new.parse(CollStream("f\"Hello, my name is {nameView.value}\".postln;"));
 t.children
 t.children[1].children
 
+// usage in a loop
 (
 var c = Complex(cos(2pi * 0.1), sin(2pi * 0.1));
 
