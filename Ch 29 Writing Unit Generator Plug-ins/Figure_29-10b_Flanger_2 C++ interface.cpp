@@ -13,7 +13,7 @@ public:
 private:
     // it is a convention to use some kind of prefix (or postfix)
     // to distinguish member variables from local variables
-    float mRate;
+    float mModRate;
     float mDelaysize;
     float mAdvance;
     float mReadpos;
@@ -25,42 +25,34 @@ private:
 Flanger::Flanger() {
     // Here we must initialise *all* state variables in our Flanger struct.
     mDelaysize = sampleRate() * 0.02f; // Fixed 20ms max delay
-    float rate = IN0(1); // initial rate
+    float rate = in0(1); // initial rate
     // Rather than using rate directly, we're going to calculate the size of
     // jumps we must make each time to scan through the delayline at "rate"
     mAdvance = ((mDelaysize * rate) / sampleRate()) + 1.0f;
-    mRate = rate;
+    mModRate = rate;
     mWritepos = 0;
     mReadpos = 0;
 
     // Allocate the delay line
     mDelayline = (float*)RTAlloc(mWorld, (int)mDelaysize * sizeof(float));
     // Check the result of RTAlloc because it can fail if the RT pool is too small!
-    if (!mDelayline)
-    {
-        Print("RTAlloc failed!");
-        // clear outputs, set calc function and set done
-        ClearUnitOutputs(unit, 1);
-        SETCALC(ClearUnitOutputs);
-        mDone = true;
-        return;
-    }
+    auto unit = this;
+    ClearUnitIfMemFailed(mDelayline);
     // Set the delay line to zeros.
     memset(mDelayline, 0, mDelaysize * sizeof(float));
 
     // sets the calc function and automatically computes 1 sample.
-    set_calc_function<&Flanger::next>();
+    set_calc_function<Flanger, &Flanger::next>();
 }
 
 Flanger::~Flanger() {
-    // check in case RTFree failed in the Ctor
-    if (mDelayline)
-        RTFree(mWorld, mDelayline);
+    // NB: it's ok to pass NULL to RTFree()
+    RTFree(mWorld, mDelayline);
 }
 
-void Flanger::next(int inNumSamples ) {
-    float *in = in(0);
-    float *out = out(0);
+void Flanger::next(int inNumSamples) {
+    const float *input = in(0);
+    float *output = out(0);
 
     // "rate" and "depth" can be modulated at control rate
     float currate = in0(1);
@@ -70,7 +62,7 @@ void Flanger::next(int inNumSamples ) {
     // to one of our members, so it would have to reload them from
     // memory on every loop iteration. To prevent this from happening,
     // we temporarily store them in local variables.
-    float rate = mRate;
+    float rate = mModRate;
     float advance = mAdvance;
     float readpos = mReadpos;
     int writepos = mWritepos;
@@ -80,11 +72,11 @@ void Flanger::next(int inNumSamples ) {
     if (rate != currate) {
         // rate input needs updating
         rate = currate;
-        advance = ((delaysize * rate * 2) / SAMPLERATE) + 1.0f;
+        advance = ((delaysize * rate) / sampleRate()) + 1.0f;
     }
 
     for (int i = 0; i < inNumSamples; ++i) {
-        float val = in[i];
+        float val = input[i];
 
         // Write to the delay line
         delayline[writepos++] = val;
@@ -101,11 +93,11 @@ void Flanger::next(int inNumSamples ) {
             readpos += delaysize;
 
         // Mix dry and wet together, and output them
-        out[i] = val + (delayed * depth);
+        output[i] = val + (delayed * depth);
     }
 
     // store them back
-    mRate = rate;
+    mModRate = rate;
     mAdvance = advance;
     mWritepos = writepos;
     mReadpos = readpos;

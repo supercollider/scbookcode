@@ -8,12 +8,12 @@ static InterfaceTable *ft;
 struct Flanger : public Unit  {
     // it is a convention to use some kind of prefix (or postfix)
     // to distinguish member variables from local variables
-    float mRate;
+    float mModRate;
     float mDelaysize;
     float mAdvance;
     float mReadpos;
     int mWritepos;
-	// a pointer to the memory we'll use for our internal delay
+    // a pointer to the memory we'll use for our internal delay
     float *mDelayline;
 };
 
@@ -27,90 +27,81 @@ void Flanger_Ctor(Flanger *unit) {
     // Rather than using rate directly, we're going to calculate the size of
     // jumps we must make each time to scan through the delayline at "rate"
     unit->mAdvance = ((unit->mDelaysize * rate) / SAMPLERATE) + 1.0f;
-    unit->mRate = rate;
+    unit->mModRate = rate;
     unit->mWritepos = 0;
     unit->mReadpos = 0;
-	
-	// Allocate the delay line
+
+    // Allocate the delay line
     unit->mDelayline = (float*)RTAlloc(unit->mWorld, (int)unit->mDelaysize * sizeof(float));
     // Check the result of RTAlloc because it can fail if the RT pool is too small!
-    if (!unit->mDelayline)
-    {
-        Print("RTAlloc failed!");
-        // clear outputs, set calc function and set done
-        ClearUnitOutputs(unit, 1);
-        SETCALC(ClearUnitOutputs);
-        unit->mDone = true;
-        return;
-    }
+    ClearUnitIfMemFailed(unit->mDelayline);
     // Set the delay line to zeros.
     memset(unit->mDelayline, 0, unit->mDelaysize * sizeof(float));
-	
-	// IMPORTANT: This tells scsynth the name of the calculation function for this UGen.
-	SETCALC(Flanger_next);
-	
-	// Should also calc 1 sample's worth of output - ensures each ugen's "pipes" are "primed"
-	Flanger_next(unit, 1);
+
+    // IMPORTANT: This tells scsynth the name of the calculation function for this UGen.
+    SETCALC(Flanger_next);
+
+    // Should also calc 1 sample's worth of output - ensures each ugen's "pipes" are "primed"
+    Flanger_next(unit, 1);
 }
 
 void Flanger_next(Flanger *unit, int inNumSamples) {
-	float *in = IN(0);
+    float *in = IN(0);
     float *out = OUT(0);
 
     // "rate" and "depth" can be modulated at control rate
     float currate = IN0(1);
-	float depth = IN0(2);
-	
+    float depth = IN0(2);
+
     // The compiler doesn't know that "out" can't possibly point
     // to one of our members, so it would have to reload them from
     // memory on every loop iteration. To prevent this from happening,
     // we temporarily store them in local variables.
-    float rate = unit->mRate;
+    float rate = unit->mModRate;
     float advance = unit->mAdvance;
     float readpos = unit->mReadpos;
     int writepos = unit->mWritepos;
     const float delaysize = unit->mDelaysize; // this one is fixed
     float *delayline = unit->mDelayline;
-	
+
     if (rate != currate) {
-		// rate input needs updating
-		rate = currate;
-        advance = ((delaysize * rate * 2) / SAMPLERATE) + 1.0f;
-	}
-	
+        // rate input needs updating
+        rate = currate;
+        advance = ((delaysize * rate) / SAMPLERATE) + 1.0f;
+    }
+
     for (int i = 0; i < inNumSamples; ++i) {
         float val = in[i];
-		
-		// Write to the delay line
-		delayline[writepos++] = val;
+
+        // Write to the delay line
+        delayline[writepos++] = val;
         if(writepos == delaysize)
-			writepos = 0;
-		
-		// Read from the delay line
+            writepos = 0;
+
+        // Read from the delay line
         float delayed = delayline[(int)readpos];
         readpos += advance;
-		// Update position, NB we may be moving forwards or backwards (depending on input)
+        // Update position, NB we may be moving forwards or backwards (depending on input)
         while(readpos >= delaysize)
-			readpos -= delaysize;
+            readpos -= delaysize;
         while(readpos < 0)
-			readpos += delaysize;
-		
-		// Mix dry and wet together, and output them
-		out[i] = val + (delayed * depth);
-	}
-	
+            readpos += delaysize;
+
+        // Mix dry and wet together, and output them
+        out[i] = val + (delayed * depth);
+    }
+
     // store them back
-    unit->mRate = rate;
+    unit->mModRate = rate;
     unit->mAdvance = advance;
     unit->mWritepos = writepos;
     unit->mReadpos = readpos;
-}	
+}
 
 void Flanger_Dtor(Flanger *unit) {
-    // check in case RTFree failed in the Ctor
-    if (unit->mDelayline)
-        RTFree(unit->mWorld, unit->mDelayline);
-}	
+    // NB: it's ok to pass NULL to RTFree()
+    RTFree(unit->mWorld, unit->mDelayline);
+}
 
 PluginLoad(InterfaceTable *inTable) {
     ft = inTable;
