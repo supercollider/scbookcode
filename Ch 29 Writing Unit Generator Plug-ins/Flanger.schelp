@@ -1,41 +1,36 @@
 TITLE:: Flanger
-summary:: TODO
-categories:: Undocumented classes, UGens>Undocumented
-related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
+summary:: A simple flanger effect
+categories:: UGens>Delays
+related:: Classes/DelayC
 
 DESCRIPTION::
-(put long description here)
+A simple flanger effect
 
 
 CLASSMETHODS::
 
 METHOD:: kr
-(describe method here)
 
 ARGUMENT:: in
-(describe argument here)
+input signal
 
 ARGUMENT:: rate
-(describe argument here)
+modulation rate
 
 ARGUMENT:: depth
-(describe argument here)
+modulation depth
 
-returns:: (describe returnvalue here)
 
 METHOD:: ar
-(describe method here)
 
 ARGUMENT:: in
-(describe argument here)
+input signal
 
 ARGUMENT:: rate
-(describe argument here)
+modulation rate
 
 ARGUMENT:: depth
-(describe argument here)
-
-returns:: (describe returnvalue here)
+modulation depth
 
 
 INSTANCEMETHODS::
@@ -44,5 +39,11 @@ INSTANCEMETHODS::
 EXAMPLES::
 
 code::
-(some example code)
+(
+{
+ var sig = Saw.ar([100, 150, 200]).mean;
+ var out = Flanger.ar(sig);
+ out.dup * 0.2;
+}.play;
+)
 ::

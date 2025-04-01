@@ -1,27 +1,24 @@
 TITLE:: Reverb1
-summary:: (put short description here)
-categories:: Undocumented classes, UGens>Undocumented
-related:: Classes/SomeRelatedClass, Reference/SomeRelatedStuff, etc.
+summary:: A simple reverb
+categories:: UGens>Reverbs
+related:: Classes/FreeVerb, Classes/FreeVerb2, Classes/GVerb
 
 DESCRIPTION::
-(put long description here)
+A simple reverb implemented as a pseudo-UGen.
 
 
 CLASSMETHODS::
 
 METHOD:: ar
-(describe method here)
 
 ARGUMENT:: in
-(describe argument here)
+input signal
 
 ARGUMENT:: wet
-(describe argument here)
+dry/wet balance; range 0..1.
 
 ARGUMENT:: cutoff
-(describe argument here)
-
-returns:: (describe returnvalue here)
+low-pass filter cutoff frequency
 
 
 INSTANCEMETHODS::
