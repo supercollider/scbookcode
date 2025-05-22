@@ -1,0 +1,105 @@
+TITLE:: CtkSynthDef
+summary:: A note prototyping system using a CtkNoteObject created from a SynthDef
+categories:: Libraries>CTK
+related:: Overviews/CTK, Classes/CtkScore, Classes/CtkSynthDef, Classes/CtkProtoNotes, Classes/CtkNote, Classes/CtkBuffer, Classes/CtkControl, Classes/CtkAudio, Classes/CtkEvent, Classes/CtkGroup
+keyword::CTK
+
+DESCRIPTION::
+Part of the Composer's Tool Kit (CTK) system. See link::Overviews/Ctk:: for more details.
+
+CtkSynthDef and link::Classes/CtkProtoNotes:: are the two prototyping classes for creating instances of link::Classes/CtkNote::. CtkSynthDef wraps a SynthDef inside a link::Classes/CtkNoteObject::.
+
+With CtkSynthDef one creates separate objects for individual SynthDefs, while with CtkProtoNotes one creates a single object storing a group of SynthDefs, accessed by their name.
+
+CtkSynthDef is created similarly to a regular link::Classes/SynthDef::, but you don't need to call code::.load:: or code::.send:: on it.
+
+CLASSMETHODS::
+
+METHOD:: new
+Create a new instance of a CtkSyntDef.
+ARGUMENT:: name
+A link::Classes/String:: or link::Classes/Symbol:: (i.e. "name" or \name). This name should be unique.
+argument:: ugenGraphFunc
+An instance of Function specifying how the def's UGens are interconnected. See link::Classes/SynthDef:: for more information.
+argument:: rates
+An optional Array of specifications for the ugenGraphFunc's arguments. The order corresponds to the order of arguments. See the examples below to see how these are used.
+
+A specification can be:
+definitionlist::
+## nil/zero || A standard control rate link::Classes/Control:: is created.
+## \ar || An audio rate link::Classes/AudioControl:: is created.
+## a float || the Control will have a lag of the specified time. This can be used to create
+smooth transitions between different values. t_ and i_ args cannot be lagged.
+## \ir || The Control can be set only at creation ('initial rate'). See discussion above.
+## \tr || The Control is used as a trigger. See discussion above.
+::
+
+argument:: prependArgs
+An optional link::Classes/Array:: of objects which will be passed as the first arguments to the ugenGraphFunc when it is evaluated. Arguments which receive values in this way will not be converted to instances of link::Classes/Control::. See the code::wrap:: example below for an example of how this can be used.
+
+argument:: variants
+An optional link::Classes/Event:: containing default argument settings. These can override the defaults specified in the ugenGraphFunc. When creating a Synth a variant can be requested by appending the defName argument in the form  'name.variant' or "name.variant". See example below.
+
+Discussion::
+Intended use:
+code::
+s.boot;
+(
+a = CtkSynthDef(\noise, {arg amp = 0.25;
+    Out.ar(0, PinkNoise.ar(amp ! 2));
+});
+);
+b = a.note; //returns a CtkNote
+b.play; //play in real-time
+b.free;
+::
+
+
+INSTANCEMETHODS::
+
+METHOD:: note
+STRONG::This is the default usage.:: Create a new instance of CtkNote based on the SynthDef contained in this instances of CtkNoteObject. See the link::Classes/CtkNote:: helpfile for more information and examples.
+ARGUMENT:: starttime
+In non-real-time or CtkScore rendering mode, the starttime of an CtkNote event. In real-time mode, this parameter will schedule the event for starttime seconds in the future.
+ARGUMENT:: duration
+If not nil, schedules the release of an CtkNote (works in both real-time and non-real-time)
+ARGUMENT:: addAction
+A symbol (\head, \tail, \before, \after or \replace) or an addAction id
+(see link::Reference/Server-Command-Reference#/s_new:: for a more in-depth description)
+ARGUMENT:: target
+A node ID (synth or group) or an instance of CtkGroup or CtkNote
+ARGUMENT:: server
+the server to execute the node on. Defaults to Server.default for real-time performance
+returns:: a link::Classes/CtkNote::
+
+METHOD:: args
+get a list of controls and defaults
+ARGUMENT:: post
+if 'post' is true, post a list of controls and defaults to the post window.
+returns:: The Dictionary containing the argument names as keys and default values.
+
+EXAMPLES::
+
+code::
+(
+a = CtkSynthDef(\test2, {arg gate = 1, freq = 440, amp = 0.5;
+	var env, envgen, src;
+	env = Control.names([\env]).kr(Env.newClear(8));
+	envgen = EnvGen.kr(env, gate, doneAction: 2);
+	src = BPF.ar(WhiteNoise.ar(amp), freq, 0.01, amp * envgen);
+	Out.ar(0, Pan2.ar(src, Rand(-1.0, 1.0)));
+});
+)
+
+// create a new instance of CtkNote based on this prototype
+b = a.note;
+
+// set values for its arguments. See the CtkNote helpfile for more info on arguments
+b.freq_(440).amp_(1.0).env_(Env([0, 1, 0], [0.5, 0.5], \sin, 1));
+
+// play it
+b.play;
+
+//release
+b.release;
+::

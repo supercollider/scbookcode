@@ -1,0 +1,3 @@
++ String {
+	shout { Shout(this) }
+}

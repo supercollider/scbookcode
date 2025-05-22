@@ -1,0 +1,275 @@
+TITLE:: CtkEvent
+summary:: An event prototyping system for use with the CTK objects
+categories:: Libraries>CTK
+related:: Overviews/CTK, Classes/CtkScore, Classes/CtkSynthDef, Classes/CtkProtoNotes, Classes/CtkNote, Classes/CtkBuffer, Classes/CtkControl, Classes/CtkAudio, Classes/CtkEvent, Classes/CtkGroup
+keyword::CTK
+
+DESCRIPTION::
+Part of the Composer's Tool Kit (CTK) system. See link::Overviews/Ctk:: for more details.
+
+CtkEvent lets you create a single layer or gesture, with a global amp and envelope control, and render it out as a score (or play back in real-time).
+
+CtkEvent keeps an internal clock that is advanced by 'next'. All notes are scheduled relative to this clock, so starttimes of 0 will schedule an event at wherever that internal clock is. These times can be offset with CtkEvents' 'starttime' parameter.
+
+You control how many times the function runs with 'condition'... either an integer saying how many times to loop, or an Envelope. When the internal clock has been advanced to the end of the Envelope, it will stop.
+
+
+CLASSMETHODS::
+
+private:: initClass
+
+private:: envsd
+
+METHOD:: new
+Create a new CtkEvent
+ARGUMENT:: starttime
+An offset from the current time (in play mode) or the starttime of the event (if non-real-time rendering is used).
+ARGUMENT:: condition
+A control for note event creation. See link::#-condition:: for more details.
+ARGUMENT:: amp
+An amplitude scaler
+ARGUMENT:: function
+A function to be evaluated for every occurrence in the CtkEvent. See link::#-function:: for more details.
+ARGUMENT:: addAction
+A symbol (\head, \tail, \before, \after or \replace) or an addAction id (see link::Reference/Server-Command-Reference#/s_new::)
+ARGUMENT:: target
+A node ID (synth or group) or an instance of CtkGroup or CtkNote
+ARGUMENT:: server
+The server to execute the node on. Defaults to Server.default for real-time performance
+returns:: a CtkEvent
+
+
+INSTANCEMETHODS::
+
+METHOD:: play
+Plays this CtkEvent, while the condition is true.
+
+METHOD:: function
+A function to be evaluated for every occurrence in the CtkEvent. May be defined at the creation time (see link::#*new::). It should be used to link::#-collect:: CtkObjects for this CtkEvent. If the link::#-condition:: is an Env, the function will also be typically used to set the link::#-next:: parameter, scheduling repeated execution appropriately. The function will have five parameters passed to it:
+LIST::
+##theCtkEvent itself
+##this instance's	CtkGroup
+##the CtkControl where global amplitude data is written to
+##the current increment value, telling the user how many times a function has been run
+##the instance of the server
+::
+While the condition is true strong::and:: the CtkEvent's 'next' parameter is not code::nil::, the function will be repeatedly called.
+ARGUMENT:: newfunction
+Function to be used.
+
+METHOD:: collect
+This is the method to populate CtkEvent with CtkObjects (like CtkNote). Typically .collect will be called inside this CtkEvent's link::#-function::.
+ARGUMENT:: ... ctkevents
+any number of CtkObjects to be performed by this event.
+
+METHOD:: condition
+If this is a number, the link::#-function:: of the CtkEvent will be executed that many times. If it is an Env, the function will be executed until the duration is satisfied (or, if the Env has a releaseNode, until .release is called and the Env has finished). Condition can also be a Boolean, or a function to be evaluated on each execution of the function. If a function is given for the condition, the internal CtkTimer and instance var 'inc' are available as arguments. The function should return a Boolean.
+returns::
+Condition to be used by this CtkEvent
+
+METHOD:: next
+A duration in beats for rescheduling the execution of the CtkEvent function. Defaults to 'nil'. Strong::If the value remains 'nil', no further execution will be allowed, regardless of condition.:: 0.0 is an allowable value, but if this is the case, your condition must terminate the execution of the event to avoid an infinite loop.
+ARGUMENT:: inval
+Duration in beats.
+
+METHOD:: score
+Get a link::Classes/CtkScore:: with notes that are collected from the function while the condition is true.
+ARGUMENT:: sustime
+If the condition is a sustaining envelope, the sustain duration can be passed into the method
+returns:: An instance of CtkScore
+
+METHOD:: record
+Plays the CtkEvent, and records the performance into a CtkScore.
+returns:: An instance of CtkScore
+
+METHOD:: now
+returns:: Current time since the start of the CtkEvent
+
+METHOD:: envbus
+returns:: The CtkControl where global amplitude data is written to
+
+METHOD:: release
+Release this CtkEvent. This works if a sustained Envelope is used as a link::#-condition::.
+
+METHOD:: free
+Free this CtkEvent.
+
+COPYMETHOD:: CtkObj -addTo
+METHOD:: starttime
+METHOD:: server
+METHOD:: timer
+METHOD:: clear
+METHOD:: endtime
+METHOD:: group
+
+PRIVATE:: setup
+PRIVATE:: checkCond
+PRIVATE:: scoreClear
+PRIVATE:: by
+PRIVATE:: for
+PRIVATE:: releaseSetup
+PRIVATE:: reltime
+PRIVATE:: curtime
+PRIVATE:: initCE
+PRIVATE:: argTarget
+PRIVATE:: run
+
+EXAMPLES::
+
+code::
+s.boot;
+
+(
+z = CtkNoteObject(
+	SynthDef(\grain, {arg globenv = 1, outbus, freq, dur, amp = 1;
+		Out.ar(outbus, Pan2.ar(SinOsc.ar(freq, 0,
+			Line.kr(amp, 0, dur) * globenv)))
+	})
+);
+
+// 5 iterations
+a = CtkEvent(0.0, 5, 5, server: s);
+a.function_({arg event, group, envbus, inc, server;
+	[event, group, envbus, inc, server].postln; // see the args that are passed in
+	// collect a new CtkNote
+	event.collect(
+		z.note(0.0, 1.0, target: group).globenv_(envbus).freq_(440.rrand(880))
+		.dur_(1.0).amp_(0.01);
+	);
+	// set the 'next' time
+	event.next_(0.2.rrand(1.0));
+});
+)
+a.play; // play it
+
+b = a.record; // play it AND record the performance in a CtkScore
+b.items;
+b.write("~/Desktop/trashme.aif".standardizePath, options: ServerOptions.new.numOutputBusChannels_(1));
+
+// using an Env to control global amplitudes and as a control
+
+(
+a = CtkEvent(0.0, Env([0, 1, 0], [1, 1], \sin, 1), 5, server: s);
+a.function_({arg event, group, envbus, inc, server;
+	// collect a new CtkNote
+	event.collect(
+		z.note(0.0, 1.0, target: group).globenv_(envbus).freq_(440.rrand(880))
+		.dur_(1.0).amp_(0.01);
+	);
+	// set the 'next' time
+	event.next_(0.2.rrand(1.0));
+});
+)
+
+a.play; // play it
+a.release; // release it
+b = a.record; // play it AND record the performance in a CtkScore
+a.release;
+b = a.score(10); // make a score, and use sustain portion of 10 seconds
+b.items;
+b.play;
+b.saveToFile("~/Desktop/trashme.sc".standardizePath);
+b.write("~/Desktop/trashme.aif".standardizePath, options: ServerOptions.new.numOutputBusChannels_(1));
+
+// merge the score of a CtkEvent with another CtkScore
+y = CtkScore.new;
+y.merge(a.score(10)); // create a CtkScore from a, and merge it with another score
+
+y.items;
+
+// Additive synthesis example - Risset Bell
+(
+var noteob;
+noteob = CtkNoteObject(
+	SynthDef(\bellpar, {arg outbus, freq, dur, amp = 1;
+		Out.ar(outbus, Pan2.ar(SinOsc.ar(freq, 0, amp) *
+			XLine.kr(amp, 0.0001, dur, doneAction: 0)))
+	})
+);
+
+f = {arg starttime = 0.0, basefreq = 440, basedur = 10, baseamp = 1;
+	var ev, amps, dur, freq, freqoff, parfreqs;
+	amps = [0.37, 0.25, 0.37, 0.67, 1.0, 0.62, 0.55, 0.5, 0.37, 0.5] * baseamp;
+	dur = [1.0, 0.9, 0.65, 0.55, 0.325, 0.35, 0.25, 0.2, 0.1, 0.075] * basedur;
+	freq = [0.56, 0.56, 0.92, 0.92, 1.19, 1.7, 2.0, 2.74, 3.76, 4.07];
+	freqoff = [0, 1, 0, 1.7, 0, 0, 0, 0, 0, 0];
+	parfreqs = basefreq * freq + freqoff;
+	parfreqs.postln;
+	// creates a single bell
+	ev = CtkEvent(starttime, 1, server: s);
+	ev.function_({arg event, group, envbus, inc, server;
+		10.do({arg i;
+			event.collect(
+				noteob.note(duration: dur[i], target: group).freq_(parfreqs[i])
+				.dur_(dur[i]).amp_(amps[i]);
+			)
+		})
+	});
+};
+
+g=f.value(baseamp: 0.25);
+)
+
+g.play;
+
+// or, add it directly to a new score
+a = CtkScore.new;
+a.add(f.value(1.0, 660, 20, 0.5))
+a.play;
+
+// save the osc Score out to a file
+h.saveToFile("~/Desktop/test.sc".standardizePath)
+
+
+(
+// algorithmically create many instances of CtkEvent and add the to a CtkScore;
+a = CtkScore.new;
+
+10.do({arg i;
+	a.add(f.value(1.0.rrand(4.0), 440 * (i + 1), i + 2.0.rand, 0.3));
+});
+)
+// play the CtkScore
+a.play;
+
+// an example of running the CtkEvent structure by hand (bypassing the function)
+(
+z = CtkNoteObject(
+	SynthDef(\grain, {arg globenv = 1, outbus, freq, dur, amp = 1;
+		Out.ar(outbus, Pan2.ar(SinOsc.ar(freq, 0,
+			Line.kr(amp, 0, dur) * globenv)))
+	})
+);
+
+a = CtkEvent(0.0, Env([0, 1, 0], [1, 1], \sin, 1), 5, server: s);
+)
+
+( // run as may times as you want
+a.collect(
+	z.note(0.0, 15.0, target: a.group).globenv_(a.envbus).freq_(440.rrand(880))
+	.dur_(15.0).amp_(0.01);
+);
+)
+
+a.play;
+a.release; // closes the env, kills all synths running in the group
+
+// with .record
+
+a = CtkEvent(0.0, Env([0, 1, 0], [1, 1], \sin, 1), 5, server: s);
+
+( // run as may times as you want
+a.collect(
+	z.note(0.0, 15.0, target: a.group).globenv_(a.envbus).freq_(440.rrand(880))
+	.dur_(15.0).amp_(0.01);
+);
+)
+
+b = a.record;
+a.release; // closes the env, kills all synths running in the group
+
+b.items
+b.play;
+
+b.saveToFile("~/Desktop/test.sc".standardizePath)
+::

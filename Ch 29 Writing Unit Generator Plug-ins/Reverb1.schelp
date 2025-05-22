@@ -1,0 +1,31 @@
+TITLE:: Reverb1
+summary:: A simple reverb
+categories:: UGens>Reverbs
+related:: Classes/FreeVerb, Classes/FreeVerb2, Classes/GVerb
+
+DESCRIPTION::
+A simple reverb implemented as a pseudo-UGen.
+
+
+CLASSMETHODS::
+
+METHOD:: ar
+
+ARGUMENT:: in
+input signal
+
+ARGUMENT:: wet
+dry/wet balance; range 0..1.
+
+ARGUMENT:: cutoff
+low-pass filter cutoff frequency
+
+
+INSTANCEMETHODS::
+
+
+EXAMPLES::
+
+code::
+(some example code)
+::

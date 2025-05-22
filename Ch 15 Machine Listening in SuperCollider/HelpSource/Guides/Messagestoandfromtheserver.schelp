@@ -1,0 +1,65 @@
+TITLE:: Messages to and from the server
+summary:: Communication between the server and the language via OSC or shared busses
+categories:: Server>Architecture, External Control>OSC
+related:: Guides/ClientVsServer, Guides/NodeMessaging, Guides/ServerTiming, Classes/SendReply, Classes/SendTrig, Classes/OSCFunc,Reference/Server-Command-Reference
+
+DESCRIPTION::
+The server has a predefined specification for the messages it can respond to. This is detailed in the file link::Reference/Server-Command-Reference:: also linked from the main Help page. You might also want to read the following help files in combination with the material below: link::Guides/ClientVsServer::, link::Guides/NodeMessaging:: and link::Guides/ServerTiming::.
+
+There is a direct consequence of this OSC interface: the server can be controlled from Java or C executables, or live from Perl or Python, or indeed, any interpreted programming language or compiled executable that can send the right instructions via OSC. For example, alternative language extensions built to support common SuperCollider constructs like creating SynthDefs exist in Haskell and Scheme (written by Rohan Drape).
+
+It's very important to remember that objects of type Bus, Buffer, Synth and Server itself are just abstractions on the language side meant to represent what's going on on the server. They make things simpler for you to code, avoiding the low level messaging syntax. But when you manipulate them, under the surface you are causing OSC messages to be sent over to the server.
+
+An interesting aspect is getting messages back from the server to the client (the Language). This can be acheived in two ways; via link::Classes/SendTrig:: or link::Classes/SendReply:: and an link::Classes/OSCFunc::, or via a link::Classes/Bus:: or link::Classes/Buffer::. In the former, the rate of messages is set on the server; in the latter, you poll the server from the language. Both are asynchronous; you'll have an older value by the time the message reaches the language.
+
+There are 1024 audio busses and 16384 control busses by default, and there are also 1024 Buffers. Buffers are only used rarely to pass data back to the language, either by writing a sound file which is then read by the language side SoundFile class, or by the get methods of Buffer. This is usually because a specialist UGen has been set up that way, and you may not have any cause to use this yourselves.
+
+
+To give an example, let's show two ways of getting data from a MouseX UGen back to the language (you might also substitute Line.kr(0,1,10) where you have MouseX.kr() if necessary)
+
+code::
+
+//method 1: using SendTrig and OSCFunc
+
+{SendTrig.kr(Impulse.kr(1), 0, MouseX.kr)}.play //impulse forces message sending once per second
+
+(
+o = OSCFunc({|msg, time, addr, recvPort|
+
+"received mouse position!".postln;
+Post << msg <<nl;  //msg[3] is just the value
+
+}, '/tr', s.addr);
+)
+
+o.free;
+
+
+//method 2: using a Bus
+
+b = Bus.control(s,1);
+
+a = { Out.kr(b.index, MouseX.kr)}.play;
+
+b.get({|val| val.postln;}); //poll once; pass the action function for what you'll do when the message arrives (it takes a short time, this is asynchronous)
+
+s.hasShmInterface //if true, there is a shared memory interface to the server from the language and synchronous bus polling is available
+
+a.free;
+
+(
+
+t = Task({
+
+10.do{
+
+b.setSynchronous(rrand(100.1,399.9));
+b.getSynchronous.postln;
+1.0.wait;
+
+}
+
+}).play
+
+)
+::

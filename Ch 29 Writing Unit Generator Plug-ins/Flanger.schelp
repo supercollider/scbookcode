@@ -1,0 +1,49 @@
+TITLE:: Flanger
+summary:: A simple flanger effect
+categories:: UGens>Delays
+related:: Classes/DelayC
+
+DESCRIPTION::
+A simple flanger effect
+
+
+CLASSMETHODS::
+
+METHOD:: kr
+
+ARGUMENT:: in
+input signal
+
+ARGUMENT:: rate
+modulation rate
+
+ARGUMENT:: depth
+modulation depth
+
+
+METHOD:: ar
+
+ARGUMENT:: in
+input signal
+
+ARGUMENT:: rate
+modulation rate
+
+ARGUMENT:: depth
+modulation depth
+
+
+INSTANCEMETHODS::
+
+
+EXAMPLES::
+
+code::
+(
+{
+ var sig = Saw.ar([100, 150, 200]).mean;
+ var out = Flanger.ar(sig);
+ out.dup * 0.2;
+}.play;
+)
+::

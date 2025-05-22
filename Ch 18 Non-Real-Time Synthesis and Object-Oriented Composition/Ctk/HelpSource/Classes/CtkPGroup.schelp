@@ -1,0 +1,27 @@
+TITLE:: CtkPGroup
+summary:: Representation of a parallel group on the server for use with CTK objects
+categories:: Libraries>CTK
+related:: Overviews/CTK, Classes/CtkScore, Classes/CtkSynthDef, Classes/CtkProtoNotes, Classes/CtkNote, Classes/CtkBuffer, Classes/CtkControl, Classes/CtkAudio, Classes/CtkEvent, Classes/CtkGroup
+keyword::CTK
+
+DESCRIPTION::
+Part of the Composer's Tool Kit (CTK) system. See link::Overviews/Ctk:: for more details.
+
+CtkPGroup is a wrapper for a link::Classes/ParGroup:: suitable for use with CTK objects. It has no ordering constrains for the contained nodes, which means that on parallel architectures (like the supernova server) they can be executed concurrently.
+
+CLASSMETHODS::
+COPYMETHOD:: CtkGroup *new
+
+INSTANCEMETHODS::
+
+COPYMETHOD:: CtkGroup -release
+COPYMETHOD:: CtkGroup -play
+COPYMETHOD:: CtkGroup -free
+
+private:: buildBundle
+
+EXAMPLES::
+
+code::
+//
+::

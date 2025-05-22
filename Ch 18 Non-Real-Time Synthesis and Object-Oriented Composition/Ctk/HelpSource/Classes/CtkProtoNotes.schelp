@@ -1,0 +1,104 @@
+TITLE:: CtkProtoNotes
+summary:: A note prototyping system using a dictionary of CtkNoteObjects created from SynthDefs
+categories:: Libraries>CTK
+related:: Overviews/CTK, Classes/CtkScore, Classes/CtkSynthDef, Classes/CtkProtoNotes, Classes/CtkNote, Classes/CtkBuffer, Classes/CtkControl, Classes/CtkAudio, Classes/CtkEvent, Classes/CtkGroup
+keyword::CTK
+
+DESCRIPTION::
+Part of the Composer's Tool Kit (Ctk) system. See link::Overviews/Ctk:: for more details.
+
+link::Classes/CtkSynthDef:: and CtkProtoNotes are the two prototyping classes for creating instances of link::Classes/CtkNote::.
+
+CtkProtoNotes stores a dictionary of link::Classes/CtkNoteObject::s created from SynthDefs.
+
+CLASSMETHODS::
+
+METHOD:: new
+Create a new instance of CtkProtoNotes.
+
+ARGUMENT::  ... synthdefs
+An instance or multiple instances of SynthDef.
+DISCUSSION::
+These SynthDefs will be loaded to the default server for use in NRT and RT use. Instances of CtkNoteObject are created from the SynthDefs to be used  for creating instances of CtkNotes. SynthDefs can also be a SynthDescLib.
+Intended use:
+code::
+s.boot;
+(
+a = CtkProtoNotes(
+        SynthDef(\noise, {arg amp = 0.25;
+                Out.ar(0, PinkNoise.ar(amp ! 2));
+            })
+    );
+);
+b = a[\noise].note; //returns a CtkNote
+b.play; //play in real-time
+b.free;
+::
+Create a CtkProtoNotes from a SynthDescLib:
+code::
+d = CtkProtoNotes(SynthDescLib.global);
+d[\default]; // returns the CtkNoteObject from the SynthDef \default
+d[\default].args;
+::
+
+INSTANCEMETHODS::
+
+METHOD:: add
+Add additional SynthDefs to an instance of CtkProtoNotes.
+ARGUMENT::  ... newsynthdefs
+SynthDefs to be added.
+
+METHOD:: at
+Access an instance of CtkNoteObject stored within an instance of CtkProtoNotes.
+ARGUMENT:: id
+The name of a SynthDef loaded into an instance of CtkProtoNotes.
+
+EXAMPLES::
+
+code::
+(
+a = CtkProtoNotes(
+	SynthDef(\test, {arg gate = 1, freq, amp;
+		var env, envgen, src;
+		env = Control.names([\env]).kr(Env.newClear(8));
+		envgen = EnvGen.kr(env, gate, doneAction: 2);
+		src = SinOsc.ar(freq, 0, amp * envgen);
+		Out.ar(0, Pan2.ar(src, Rand(-1.0, 1.0)));
+	}),
+	SynthDef(\control, {arg outbus, rate, low, hi;
+		Out.kr(outbus, LFNoise2.kr(rate).range(low, hi))
+	})
+);
+);
+
+(
+a.add(
+	SynthDef(\test2, {arg gate = 1, freq, amp;
+		var env, envgen, src;
+		env = Control.names([\env]).kr(Env.newClear(8));
+		envgen = EnvGen.kr(env, gate, doneAction: 2);
+		src = BPF.ar(WhiteNoise.ar(amp), freq, 0.01, amp * envgen);
+		Out.ar(0, Pan2.ar(src, Rand(-1.0, 1.0)));
+	})
+);
+);
+
+// access the CtkNoteObject prototype
+
+a[\test];
+a[\test].args;
+
+a[\control];
+a[\control].args;
+
+a[\test2];
+a[\test2].args;
+
+
+//create instances if CtkNote and play them
+b = a[\test2].new.freq_(440).amp_(1.0).env_(Env([0, 1, 0], [0.5, 0.5], \sin, 1)).play;
+c = a[\test].new.freq_(660).amp_(0.1).env_(Env([0, 1, 0], [0.5, 0.5], \sin, 1)).play;
+
+c.release;
+b.release;
+::

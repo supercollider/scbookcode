@@ -1,0 +1,21 @@
+TITLE:: CtkObj
+summary:: A superclass of other CTK classes
+categories:: Libraries>CTK
+related:: Overviews/CTK, Classes/CtkScore, Classes/CtkSynthDef, Classes/CtkProtoNotes, Classes/CtkNote, Classes/CtkBuffer, Classes/CtkControl, Classes/CtkAudio, Classes/CtkEvent, Classes/CtkGroup
+keyword::CTK
+
+DESCRIPTION::
+
+
+CLASSMETHODS::
+
+METHOD:: latency
+Sets default latency for sending OSC bundles. Setting this too low will result in inconsistent timing of events scheduled with Tasks and Routines (and "late" messages from the server). However, when set to code::0::, events from external controllers (MIDI, GUI etc.) will be processed as soon as possible, but "late" messages will be printed. Also see link::Guides/ServerTiming::.
+
+INSTANCEMETHODS::
+
+METHOD:: addTo
+Add this object to a CtkScore
+
+ARGUMENT:: aCtkScore
+An instance of CtkScore
