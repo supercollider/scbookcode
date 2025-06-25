@@ -1,11 +1,11 @@
-	
+
 	// GrainSin.help example as nodeproxy
-	
+
 p = ProxySpace.push;
 (
 ~grain.play;
 ~grain = {	arg envbuf = -1, density = 10, graindur=0.1, amp=0.2;
-	var pan, env, freqdev; 
+	var pan, env, freqdev;
 	var trig = Impulse.kr(density);
 	pan = MouseX.kr(-1, 1);		// use mouse x to control panning
 	// use WhiteNoise and mouse y to control deviation from center
@@ -14,12 +14,14 @@ p = ProxySpace.push;
 };
 )
 
+p.clear.pop;
+
 
 
 	// switching envelopes while playing
-	
+
 q = q ? ();		// make a dict to keep things around
-q.envs = ();		// e.g. some envelopes 
+q.envs = ();		// e.g. some envelopes
 q.bufs = ();		// and some buffers
 				// make an envelope, and convert it to a buffer
 q.envs.perc1 = Env([0, 1, 0], [0.1, 0.9], -4);
@@ -39,8 +41,8 @@ q.bufs.perc1 = Buffer.sendCollection(s, q.envs.perc1.discretize, 1);
 ~grdur = 0.1;
 ~grain.map(\graindur, ~grdur);
 ~grdur = { LFNoise1.kr(1).range(0.01, 0.1) };
-~grdur = { SinOsc.kr(0.3).range(0.01, 0.1) };
-~grdur = 0.01;
+~grdur = { SinOsc.kr(0.3).exprange(0.01, 0.1) };
+~grdur = { 0.01 };
 
 	// create random densities from 2 to 2 ** 6, exponentially distributed
 ~grdensity = { 2 ** LFNoise0.kr(1).range(0, 6) };
@@ -61,7 +63,7 @@ q.bufs.perc1 = Buffer.sendCollection(s, q.envs.perc1.discretize, 1);
 	var freqdev = WhiteNoise.kr(MouseY.kr(0, 400));
 	var freq = 440 + freqdev;
 	var moddepth = LFNoise1.kr.range(1, 10);
-	GrainFM.ar(2, trig, graindur, freq, modfreq, moddepth, pan, envbuf) 
+	GrainFM.ar(2, trig, graindur, freq, modfreq, moddepth, pan, envbuf)
 	* 0.2
 };
 )
@@ -74,7 +76,7 @@ q.bufs.perc1 = Buffer.sendCollection(s, q.envs.perc1.discretize, 1);
 	var freq = 440 + freqdev;
 	var modrange = MouseX.kr(1, 10);
 	var moddepth = LFNoise1.kr.range(1, modrange);
-	GrainFM.ar(2, trig, graindur, freq, modfreq, moddepth, pan, envbuf) 
+	GrainFM.ar(2, trig, graindur, freq, modfreq, moddepth, pan, envbuf)
 	* 0.2
 };
 )
@@ -89,13 +91,13 @@ q.bufs.perc1 = Buffer.sendCollection(s, q.envs.perc1.discretize, 1);
 ~graindur = 0.1;
 
 ~grain = { arg envbuf = -1;
-	GrainFM.ar(2, ~trig.kr, ~graindur.kr, 
-		~freq.kr, ~modfreq.kr, ~moddepth.kr, 
-		pan: WhiteNoise.kr, envbuf: envbuf) * 0.2
+	GrainFM.ar(2, ~trig.kr, ~graindur.kr,
+		~freq.kr, ~modfreq.kr, ~moddepth.kr,
+		pan: WhiteNoise.kr, envbufnum: envbuf).postln * 0.2
 };
 ~grain.play;
 )
-	// change control ugens: 
+	// change control ugens:
 ~modfreq = { ~freq.kr * LFNoise2.kr(1).range(0.5, 2.0) }; // modfreq roughly follows freq
 ~trig = { |dens=10| Dust.kr(dens)};	// random triggering, same density
 ~freq = { LFNoise0.kr(0.3).range(200, 800) };
@@ -112,15 +114,14 @@ q.bufs.perc1 = Buffer.sendCollection(s, q.envs.perc1.discretize, 1);
 
 ProxyMixer(p);
 
-
-
-
-p = ProxySpace.push;
+p.clear.pop;
 
 
 	// figure 16.14 - GrainBuf and control proxies
 
-b = Buffer.read(s, "sounds/a11wlk01-44_1.aiff");
+p = ProxySpace.push;
+
+b = Buffer.read(s, String.scDir +/+ "sounds/a11wlk01-44_1.aiff");
 (
 ~grain.set(\wavebuf, b.bufnum);
 ~trig = { |dens=10| Impulse.kr(dens) };
@@ -129,8 +130,8 @@ b = Buffer.read(s, "sounds/a11wlk01-44_1.aiff");
 ~rate = { LFNoise1.kr.range(0.5, 1.5) };
 
 ~grain = { arg envbuf = -1, wavebuf = 0;
-	GrainBuf.ar(2, ~trig.kr, ~graindur.kr, wavebuf, 
-	~rate.kr, ~filepos.kr, 2, WhiteNoise.kr, envbuf) * 0.2
+	GrainBuf.ar(2, ~trig.kr, ~graindur.kr, wavebuf,
+	~rate.kr, ~filepos.kr, 2, WhiteNoise.kr, envbuf).postln * 0.2
 };
 ~grain.play;
 )
@@ -143,9 +144,10 @@ b = Buffer.read(s, "sounds/a11wlk01-44_1.aiff");
 ~trig = { |dens=50| Dust.kr(dens) };
 
 c = Buffer.sendCollection(s, Env.perc(0.01, 0.99).discretize, 1);
-~grain.set(\envbuf, c.bufnum); 
+~grain.set(\envbuf, c.bufnum);
 ~grain.set(\envbuf, -1);
 
 ~trig = { |dens=50| Impulse.kr(dens) }; ~graindur = 0.05;
 
 
+p.clear.pop;

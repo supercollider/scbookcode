@@ -1,20 +1,18 @@
+// attempt to get all examples working with Wavesets2/Event ...
+
 Quarks.install("WavesetsEvent");
 
 
-//	figure 16.22 - a Wavesets object
+//	figure 16.24 - a Wavesets object
 
 // using WavesetsEvent quark:
-s.waitForBoot {
-	~wsev = WavesetsEvent.read(Platform.resourceDir +/+ "sounds/a11wlk01.wav",
-		onComplete: {
-			w = ~wsev.wavesets;
-			b = ~wsev.buffer;
-	});
-};
-
-// ~wsev is the WavesetsEvent,
-// w is the Wavesets2 object
-
+// ~wsev is the WavesetsEvent which does the Wavesets event interface,
+// w is the Wavesets2 object which contains all the wavesets data.
+~wsev = WavesetsEvent.read(Platform.resourceDir +/+ "sounds/a11wlk01.wav",
+	onComplete: {
+		w = ~wsev.wavesets;
+		b = ~wsev.buffer;
+});
 
 w.xings;			// all integer indices of the zero crossings found
 w.numXings;		// the total number of zero crossings
@@ -29,18 +27,12 @@ w.fracLengths;	// and lengths: allows more precise looping / tuning.
 w.lengths.plot;	// show distribution of lengths
 w.amps.plot;
 
-// get data for a single waveset: frameIndex, length (in frames), dur
+// get data for a single waveset: startFrame, length (in frames), duration
 w.frameFor(140, 1);
+
 w.maximumAmp(140, 1);	// maximum amplitude of that waveset or group
+w.ampFor(140, 1);
 
-
-// prepare a playable wavesets event from an inevent with:
-// start: (waveset index),
-// num: number of wavesets to use as group
-// repeats: number of repeats of that waveset group
-// amp, pan, behave as expected
-~playme = ~wsev.asEvent((start: 2300, num: 5, repeats: 20));
-~playme.play;
 
 // extract a waveset by hand
 w.signal.copyRange(w.xings[150], w.xings[151]).plot("waveset 150");
@@ -50,63 +42,72 @@ w.plot(1510, 1);
 // plot a group of 5 adjacent wavesets
 w.plot(1510, 5);
 
-// figure 16.23 and 24 are screenshots
 
-//	figure 16.25 - wavesets and buffers
+
+// figure 16.25 shows screenshots of the two plots above
+
+
+//	figure 16.26 - wavesets and buffers
 
 // A Synthdef to play a waveset (or group) n times.
 (
 // Wavesets.prepareSynthDefs loads this synthdef:
-SynthDef(\wvst0, { arg out = 0, buf = 0, start = 0, length = 441, playRate = 1, sustain = 1, amp=0.2, pan;
-	var phasor = Phasor.ar(0, BufRateScale.ir(buf) * playRate, 0, length) + start;
+SynthDef(\wvst0, { | out = 0, buf = 0, startFrame = 0, numFrames = 441, rate = 1, sustain = 1, amp = 0.1, pan, interpolation = 2 |
+	var phasor = Phasor.ar(0, BufRateScale.ir(buf) * rate * sign(numFrames), 0, abs(numFrames)) + startFrame;
 	var env = EnvGen.ar(Env([amp, amp, 0], [sustain, 0]), doneAction: 2);
-	var snd = BufRd.ar(1, buf, phasor) * env;
+	var snd = BufRd.ar(1, buf, phasor, 1, interpolation) * env;
 
 	OffsetOut.ar(out, Pan2.ar(snd, pan));
-}, \ir.dup(8)).add;
+}, \ir.dup(9)).add;
 )
 
-// make a wavesets play-event from scratch:
+// make a wavesets play-event with hand-set parameters:
 // play from frame 0 to 440, looped for 0.1 secs, so ca 10 repeats.
-(instrument: \wvst0, buf: b.bufnum, start: 0, length: 440, amp: 1, sustain: 0.1).play;
+(instrument: \wvst0, buf: b.bufnum, startFrame: 0, numFrames: 440, amp: 1, sustain: 0.1).play;
 
-// get raw data from waveset
+// get frame data from wavesets with frameFor:
 (
-var start, length, sustain, repeats = 20, playRate = 0.5;
-#start, length = w.frameFor(150, 5);
-sustain = length / b.sampleRate / playRate;
-
-(	instrument: \wvst0, buf: b.bufnum, amp: 1,
-start: start, length: length,
-playRate: playRate,
+var startFrame, numFrames, sustain, repeats = 20, rate = 1;
+#startFrame, numFrames, sustain = w.frameFor(2300, 5);
+(
+instrument: \wvst0, buf: b.bufnum, amp: 1,
+startFrame: startFrame, numFrames: numFrames,
+rate: rate,
 sustain: sustain * repeats
-).play;
+).postln.play;
 )
 
-XXX still broken:
-// or even simpler:
-~wsev.eventFor(startWs: 2300, numWs: 5, repeats: 20, playRate: 1).put(\amp, 0.5).play;
+// or even use eventFor :
+~wsev.eventFor(startWs: 2300, numWs: 5, repeats: 20, rate: 1).put(\amp, 0.5).play;
+
+// WavesetsEvent:asEvent prepares a playable event from an inevent,
+// which supports specifying many waveset parameters. The basic ones are:
+// start: (waveset index),
+// num: number of wavesets to use as group
+// repeats: number of repeats of that waveset group
+~playme = ~wsev.asEvent((start: 2300, num: 5, repeats: 20, amp: 1));
+~playme.play;
 
 
-
-// figure 16.26 - a pattern to play wavesets
+// figure 16.27 - a pattern to play wavesets
 
 // by default, this pattern reconstructs a soundfile segment.
 (
 Pbindef(\ws1).clear;
 Pbindef(\ws1,
 	\instrument, \wvst0,
-	\startWs, Pn(Pseries(0, 1, 3000), 1),
+	\startWs, Pn(Pseries(0, 1, w.size - 1), 1),
 	\numWs, 1,
-	\playRate, 1,
+	\rate, 1,
 	\buf, b.bufnum,
 	\repeats, 1,
-	\amp, 0.4,
-	[\start, \length, \sustain], Pfunc({ |ev|
+	\amp, 1,
+	[\startFrame, \numFrames, \sustain], Pfunc({ |ev|
 		var start, length, wsDur;
 		#start, length, wsDur = w.frameFor(ev[\startWs], ev[\numWs]);
-		wsDur =
-		[start, length, wsDur * ev[\repeats] / ev[\playRate].abs]
+		if (length > 0) {
+			[start, length, wsDur * ev[\repeats] / ev[\rate].abs]
+		}
 	}),
 	\dur, Pkey(\sustain)
 ).play;
@@ -114,42 +115,46 @@ Pbindef(\ws1,
 
 
 
-//	figure 16.27 - some of wishart's transforms
+//	figure 16.28 - some of Wishart's transforms
 
 // waveset transposition: every second waveset, half speed
-Pbindef(\ws1, \playRate, 0.5, \startWs, Pn(Pseries(0, 2, 500), 1)).play;
+Pbindef(\ws1, \rate, 0.5, \startWs, Pn(Pseries(0, 2, w.size / 2), 1)).play;
 
 // reverse every single waveset
-Pbindef(\ws1, \playRate, -1, \startWs, Pn(Pseries(0, 1, 1000), 1)).play;
+Pbindef(\ws1, \rate, -1, \startWs, Pn(Pseries(0, 1, w.size), 1)).play;
 // reverse every 2 wavesets
-Pbindef(\ws1, \numWs, 2, \playRate, -1, \startWs, Pn(Pseries(0, 2, 1000), 1)).play;
+Pbindef(\ws1, \numWs, 3, \rate, -1, \startWs, Pn(Pseries(0, 3, w.size / 3), 1)).play;
 // reverse every 20 wavesets
-Pbindef(\ws1, \numWs, 20, \playRate, -1, \startWs, Pn(Pseries(0, 20, 1000), 1)).play;
+Pbindef(\ws1, \numWs, 10, \rate, -1, \startWs, Pn(Pseries(0, 10, w.size / 10), 1)).play;
+// reverse every 200 wavesets
+Pbindef(\ws1, \numWs, 30, \rate, -1, \startWs, Pn(Pseries(0, 30, w.size / 30), 1)).play;
+// reverse every 200 wavesets
+Pbindef(\ws1, \numWs, 100, \rate, -1, \startWs, Pn(Pseries(0, 100, w.size / 100), 1)).play;
 // restore
-Pbindef(\ws1, \numWs, 1, \playRate, 1, \startWs, Pn(Pseries(0, 1, 1000), 1)).play;
+Pbindef(\ws1, \numWs, 1, \rate, 1, \startWs, Pn(Pseries(0, 1, w.size), 1)).play;
 
 // time stretching
-Pbindef(\ws1, \playRate, 1, \repeats, 2).play;
-Pbindef(\ws1, \playRate, 1, \repeats, 4).play;
-Pbindef(\ws1, \playRate, 1, \repeats, 6).play;
+Pbindef(\ws1, \rate, 1, \repeats, 2).play;
+Pbindef(\ws1, \rate, 1, \repeats, 4).play;
+Pbindef(\ws1, \rate, 1, \repeats, 6).play;
 Pbindef(\ws1, \repeats, 1).play;	// restore
 
-// waveset omission: drop every second
+// waveset omission: drop every second waveset
 Pbindef(\ws1, \numWs, 1, \freq, Pseq([1, \], inf) ).play;
 Pbindef(\ws1, \numWs, 1, \freq, Pseq([1,1, \, \], inf) ).play;
 Pbindef(\ws1, \numWs, 1, \freq, Pfunc({ if (0.25.coin, 1, \) }) ).play; // drop randomly
-Pbindef(\ws1, \numWs, 1, \freq, 1, \startWs, Pn(Pseries(0, 1, 1000)) ).play; // restore
+Pbindef(\ws1, \numWs, 1, \freq, 1 ).play; // restore
 
 // waveset shuffling (randomize waveset order +- 5, 25, 125)
-Pbindef(\ws1, \startWs, Pn(Pseries(0, 1, 1000), 1) + Pfunc({ 5.rand2 })).play;
-Pbindef(\ws1, \startWs, Pn(Pseries(0, 1, 1000), 1) + Pfunc({ 25.rand2 })).play;
-Pbindef(\ws1, \startWs, Pn(Pseries(0, 1, 1000), 1) + Pfunc({ 125.rand2 })).play;
+Pbindef(\ws1, \startWs, (Pn(Pseries(0, 1, w.size), 1) + Pfunc({ 5.rand2 })).max(0)).play;
+Pbindef(\ws1, \startWs, (Pn(Pseries(0, 1, w.size), 1) + Pfunc({ 25.rand2 })).max(0)).play;
+Pbindef(\ws1, \startWs, (Pn(Pseries(0, 1, w.size), 1) + Pfunc({ 125.rand2 })).max(0)).play;
 
 
 
 
 
-//	figure 16.28 - waveset substitution
+//	figure 16.29 - waveset substitution
 
 // the waveform to substitute
 c = Buffer.alloc(s, 512); c.loadCollection(Signal.sineFill(512, [1]));
@@ -157,20 +162,20 @@ c = Buffer.alloc(s, 512); c.loadCollection(Signal.sineFill(512, [1]));
 Pbindef(\ws1).clear;
 Pbindef(\ws1,
 	\instrument, \wvst0,
-	\startWs, Pn(Pseries(0, 1, 1000), 5),
-	\numWs, 1, \playRate, 1,
+	\startWs, Pn(Pseries(0, 1, w.size), 5),
+	\numWs, 1, \rate, 1,
 	\buf, c.bufnum, // sine wave
 	\repeats, 1,
 	\amp, 1,
-	[\start, \length, \sustain], Pfunc({ |ev|
+	[\startFrame, \numFrames, \sustain], Pfunc({ |ev|
 		var start, length, wsDur, origRate;
-		origRate = ev[\playRate];
+		origRate = ev[\rate];
 
 		// get orig waveset specs
 		#start, length, wsDur = w.frameFor(ev[\startWs], ev[\numWs]);
 
-		// adjust playrate for different length of substituted wave
-		ev[\playRate] = origRate * (512 / length);
+		// adjust rate for different length of substituted wave
+		ev[\rate] = origRate * (512 / length);
 
 		// get amplitude from waveset, to scale full volume sine wave
 		ev[\amp] = ev[\amp] * w.ampFor(ev[\startWs], ev[\numWs]);
@@ -180,38 +185,37 @@ Pbindef(\ws1,
 	\dur, Pkey(\sustain)
 ).play;
 )
+
 // clearer sinewave-ish segments
-Pbindef(\ws1, \playRate, 1, \repeats, 2).play;
-Pbindef(\ws1, \playRate, 1, \repeats, 6).play;
+Pbindef(\ws1, \rate, 1, \repeats, 2).play;
+Pbindef(\ws1, \rate, 1, \repeats, 6).play;
 Pbindef(\ws1).stop;
 
-// different waveforms
-c.loadCollection(Signal.sineFill(512, 1/(1..4).scramble));
-c.loadCollection(Signal.rand(512, -1.0, 1.0)); // white noise
-c.loadCollection(Signal.sineFill(512, [1])); // sine
-
-c.plot;
-
-
+// different substitution waveforms to try:
+c.loadCollection(Signal.sineFill(512, 1/(1..4))); c.plot; // sawish
+// fibonacci overtones
+c.loadCollection(Signal.sineFill(512, [1, 1, 1, 0, 1, 0, 0, 1])); c.plot;
+c.loadCollection(Signal.rand(512, -1.0, 1.0)); c.plot; // white noise
+c.loadCollection(Signal.sineFill(512, [1])); c.plot;// sine
 
 
 //	waveset interpolation - web examples only
 (
 SynthDef("wsInterp", { arg out = 0,
-	buf1 = 0, start1 = 0, len1 = 1000,
-	buf2 = 0, start2 = 0, len2 = 500,
-	playRate = 1, sustain = 1,
+	buf1 = 0, startFrame1 = 0, numFrames1 = 1000,
+	buf2 = 0, startFrame2 = 0, numFrames2 = 500,
+	rate = 1, sustain = 1,
 	amp=0.2, pan;
 
-	var lenRatio = (len1 / len2);
-	var playRateLine = Line.ar(playRate, playRate * lenRatio, sustain);
+	var lenRatio = (numFrames1 / numFrames2);
+	var rateLine = Line.ar(rate, rate * lenRatio, sustain);
 
-	var phasor1 = Phasor.ar(0, BufRateScale.ir(buf1) * playRateLine, 0, len1);
+	var phasor1 = Phasor.ar(0, BufRateScale.ir(buf1) * rateLine, 0, numFrames1);
 	var phasor2 = phasor1 / lenRatio;
 	var xfade = Line.ar(0, 1, sustain);
 
 	var snd = (BufRd.ar(1, [buf1, buf2],
-		[phasor1 + start1, phasor2 + start2],
+		[phasor1 + startFrame1, phasor2 + startFrame2],
 		interpolation: 4)
 	* [1 - xfade, xfade]).sum;
 
@@ -226,15 +230,15 @@ SynthDef("wsInterp", { arg out = 0,
 
 (
 q = q ? ();
-q.playInterp = { |q, start1, len1, start2, len2, numWs=200|
-	var set1 = w.frameFor(start1, len1).postln;
-	var set2 = w.frameFor(start2, len2).postln;
+q.playInterp = { |q, startFrame1, numFrames1, startFrame2, numFrames2, numWs=200|
+	var set1 = w.frameFor(startFrame1, numFrames1).postln;
+	var set2 = w.frameFor(startFrame2, numFrames2).postln;
 	var sustain = (set2[2] + set1[2] * 0.5 * numWs).postln;
 
 	(instrument: \wsInterp, buf1: b.bufnum, buf2: b.bufnum, amp: 0.5,
 
-		start1: set1[0], len1: set1[1], playRate: 1,
-		start2: set2[0], len1: set2[1], sustain: sustain
+		startFrame1: set1[0], numFrames1: set1[1], rate: 1,
+		startFrame2: set2[0], numFrames1: set2[1], sustain: sustain
 	).play;
 };
 )
@@ -247,7 +251,7 @@ q.playInterp(200, 1, 500, 5, 600);
 
 
 
-//	figure 16.29 - wavesets played with Tdef
+//	figure 16.30 - wavesets played with Tdef
 
 // very simple first pass, fixed repeat time
 (
@@ -256,13 +260,13 @@ Tdef(\ws1).set(\numWs, 5);
 Tdef(\ws1).set(\repeats, 5);
 
 Tdef(\ws1, { |ev|
-	var startFrame, length, wsSustain;
+	var startFrame, numFrames, wsSustain;
 
 	loop {
-		#startFrame, length, wsSustain = w.frameFor(ev.startWs.next, ev.numWs);
+		#startFrame, numFrames, wsSustain = w.frameFor(ev.startWs.next, ev.numWs);
 
 		(instrument: \wvst0, buf: b.bufnum, amp: 1,
-			start: startFrame, length:  length,
+			start: startFrame, numFrames:  numFrames,
 			sustain: wsSustain * ev.repeats;
 		).play;
 
@@ -282,20 +286,20 @@ Tdef(\ws1).set(\startWs, Pn(Pseries(0, 5, 400) + 500, inf).asStream);
 
 
 
-// figure 16.30 - waittime from waveset duration, gap
+// figure 16.31 - waittime from waveset duration, gap added
 (
 Tdef(\ws1).set(\gap, 3);
 Tdef(\ws1, { |ev|
-	var startFrame, length, wsSustain, reps;
+	var startFrame, numFrames, wsSustain, reps;
 
 	loop {
 		reps = ev.repeats.next;
 
-		#startFrame, length, wsSustain =
+		#startFrame, numFrames, wsSustain =
 		w.frameFor(ev.startWs.next, ev.numWs.next);
 
 		(instrument: \wvst0, buf: b.bufnum, amp: 1,
-			start: startFrame, length:  length,
+			start: startFrame, numFrames:  numFrames,
 			sustain: wsSustain * reps,
 			pan: 1.0.rand2
 		).play;
@@ -321,8 +325,7 @@ Tdef(\ws1).set(\numWs, 3, \repeats, { rrand(2, 5) });
 Tdef(\ws1).stop;
 
 
-
-// figure 16.31 - add pitch contour and dropout rate
+// figure 16.32 - add pitch contour and dropout rate
 (
 Tdef(\ws1).set(\startWs, Pn(Pseries(0, 5, 400) + 500, inf).asStream);
 
@@ -333,25 +336,25 @@ Tdef( 'ws1' ).set( 'repeats' , 5 );
 Tdef( 'ws1' ).set( 'numWs' , 3 );
 
 Tdef(\ws1, { |ev|
-	var startFrame, length, wsSustain, reps, numWs, len2Avg;
-	var squeezer, playRate;
+	var startFrame, numFrames, wsSustain, reps, numWs, numFrames2Avg;
+	var squeezer, rate;
 	loop {
 		reps = ev.repeats.next;
 		numWs = ev.numWs.next;
 
-		#startFrame, length, wsSustain =
+		#startFrame, numFrames, wsSustain =
 		w.frameFor(ev.startWs.next, numWs);
 
-		len2Avg = length / numWs / w.avgLength;
-		squeezer = len2Avg ** ev.pitchContour.next;
+		numFrames2Avg = numFrames / numWs / w.avgLength;
+		squeezer = numFrames2Avg ** ev.pitchContour.next;
 		wsSustain = wsSustain / squeezer;
-		playRate = 1 * squeezer;
+		rate = 1 * squeezer;
 
 		if (ev.keepCoin.next.coin) {
 			(instrument: \wvst0, buf: b.bufnum, amp: 1,
-				start: startFrame, length:  length,
+				start: startFrame, numFrames:  numFrames,
 				sustain: wsSustain * reps,
-				playRate: playRate,
+				rate: rate,
 				pan: 1.0.rand2
 			).play;
 		};
@@ -366,7 +369,7 @@ Tdef(\ws1).set(\pitchContour, 0); 	// original pitch
 
 Tdef(\ws1).set(\pitchContour, 0.5); // flattened contour
 
-// waveset overtone singing - all equal length
+// waveset overtone singing - all equal duration
 Tdef(\ws1).set(\pitchContour, 1.0);
 
 // inversion of contour
